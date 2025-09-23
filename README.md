@@ -1,16 +1,16 @@
 # CT312H: MOBILE PROGRAMMING
 
-## Project Name: ...
+## Project Name: MOVIE APP
 
 Semester 1, Academic year: 2025-2026
 
-**Student ID 1**: ...
+**Student ID 1**: B22206004
 
-**Student Name 1**: ...
+**Student Name 1**: TRẦN THỊ KIM PHỤNG
 
-**Student ID 2**: ...
+**Student ID 2**: B2205999
 
-**Student Name 2**: ...
+**Student Name 2**: HUỲNH THANH NHUẬN
 
-**Class Number**: ...
+**Class Number**: M01
 
