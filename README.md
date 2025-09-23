@@ -4,7 +4,7 @@
 
 Semester 1, Academic year: 2025-2026
 
-**Student ID 1**: B22206004
+**Student ID 1**: B2206004
 
 **Student Name 1**: TRẦN THỊ KIM PHỤNG
 
