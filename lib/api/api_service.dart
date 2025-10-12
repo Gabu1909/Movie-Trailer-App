@@ -35,7 +35,6 @@ class ApiService {
     }
   }
 
-  // --- PHẦN MỚI ĐƯỢC THÊM ---
   Future<List<Genre>> getGenres() async {
     final response = await http.get(Uri.parse(
         '${ApiConstants.baseUrl}/genre/movie/list?api_key=${ApiConstants.apiKey}'));
@@ -46,7 +45,6 @@ class ApiService {
       throw Exception('Failed to load genres');
     }
   }
-  // --- KẾT THÚC PHẦN MỚI ---
 
   Future<List<Movie>> _getMovies(String url) async {
     final response = await http.get(Uri.parse(url));
