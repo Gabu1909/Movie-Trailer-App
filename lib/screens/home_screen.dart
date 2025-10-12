@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -11,18 +10,16 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Drawer (Menu 3 gạch)
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(
-                color: Color(0xFF212529), // Màu nền tối
+                color: Color(0xFF212529),
               ),
               child: Row(
                 children: [
-                  // Thay 'assets/logo.png' bằng đường dẫn đến logo của bạn
                   Image.asset('assets/logo.png', height: 40),
                   const SizedBox(width: 10),
                   const Text(
@@ -36,39 +33,34 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            // Các mục trong menu
             _buildDrawerItem(
               icon: Icons.category,
-              title: 'Thể Loại',
-              onTap: () {
-                // Thêm hành động khi nhấn vào đây, ví dụ: Navigator.pop(context);
-              },
+              title: 'Genres',
+              onTap: () {},
             ),
             _buildDrawerItem(
               icon: Icons.movie,
-              title: 'Phim Lẻ',
+              title: 'Movies',
               onTap: () {},
             ),
             _buildDrawerItem(
               icon: Icons.tv,
-              title: 'Phim Bộ',
+              title: 'TV Shows',
               onTap: () {},
             ),
             _buildDrawerItem(
               icon: Icons.public,
-              title: 'Quốc Gia',
+              title: 'Countries',
               onTap: () {},
             ),
           ],
         ),
       ),
-      // AppBar được thiết kế lại
       appBar: AppBar(
-        backgroundColor: const Color(0xFF212529), // Màu nền tối
+        backgroundColor: const Color(0xFF212529),
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Thay 'assets/logo.png' bằng đường dẫn đến logo của bạn
             Image.asset('assets/logo.png', height: 35),
             const SizedBox(width: 8),
             const Text('PuTa'),
@@ -112,7 +104,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // Widget phụ để tạo các mục trong Drawer cho đẹp và gọn
   Widget _buildDrawerItem({
     required IconData icon,
     required String title,
