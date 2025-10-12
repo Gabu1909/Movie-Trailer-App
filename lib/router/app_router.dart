@@ -1,15 +1,12 @@
-// lib/app_router.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/movie.dart';
-import '../screens/about_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/main_wrapper.dart';
 import '../screens/movie_detail_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/see_all_screen.dart';
-import '../screens/settings_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -22,10 +19,9 @@ class AppRouter {
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) {
-          return MainWrapper(child: child); // Wrapper with BottomNavBar
+          return MainWrapper(child: child);
         },
         routes: [
-          // Đưa Search trở lại đây
           GoRoute(
             path: '/home',
             builder: (context, state) => const HomeScreen(),
@@ -57,16 +53,6 @@ class AppRouter {
           final movies = extra['movies'] as List<Movie>? ?? [];
           return SeeAllScreen(title: title, movies: movies);
         },
-      ),
-      GoRoute(
-        path: '/settings',
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const SettingsScreen(),
-      ),
-      GoRoute(
-        path: '/settings/about',
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AboutScreen(),
       ),
     ],
   );
