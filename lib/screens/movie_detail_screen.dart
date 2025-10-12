@@ -1,6 +1,8 @@
+// lib/screens/movie_detail_screen.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../api/api_constants.dart';
 import '../api/api_service.dart';
 import '../models/movie.dart';
@@ -42,18 +44,42 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
+                backgroundColor: Colors.black.withOpacity(0.7),
+                iconTheme: const IconThemeData(color: Colors.white),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => context.pop(),
+                ),
                 expandedHeight: 300.0,
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
-                  title:
-                      Text(movie.title, style: const TextStyle(fontSize: 16)),
-                  background: CachedNetworkImage(
-                    imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, url, error) =>
-                        const Icon(Icons.movie, size: 100),
+                  title: Text(
+                    movie.title,
+                    style: const TextStyle(fontSize: 16),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl:
+                            '${ApiConstants.imageBaseUrl}${movie.posterPath}',
+                        fit: BoxFit.cover,
+                      ),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment(0.0, 0.5),
+                            end: Alignment.center,
+                            colors: <Color>[
+                              Color(0x60000000),
+                              Color(0x00000000),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 actions: [
