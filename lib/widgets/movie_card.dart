@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../api/api_constants.dart';
-import '../models/movie.dart'; // <--- ĐÃ THÊM
+import '../models/movie.dart';
 
 class MovieCard extends StatelessWidget {
   final Movie movie;
@@ -13,7 +13,7 @@ class MovieCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.go('/movie/${movie.id}');
+        context.push('/movie/${movie.id}');
       },
       child: Card(
         clipBehavior: Clip.antiAlias,
