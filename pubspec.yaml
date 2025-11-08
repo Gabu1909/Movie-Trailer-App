@@ -9,6 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shimmer: ^3.0.0
+  youtube_player_flutter: ^9.0.1
+  dio: ^5.4.3+1                # Để tải file hiệu quả
+  path_provider: ^2.1.3        # Để lấy đường dẫn lưu file trên thiết bị
+  video_player: ^2.8.6         # Phát video từ file đã tải về
+  intl: ^0.18.1                 # Định dạng ngày tháng
   
   # Network requests
   http: ^1.2.0
@@ -21,6 +27,7 @@ dependencies:
   
   # Local Database
   sqflite: ^2.3.2
+  shared_preferences: ^2.2.3
   path: ^1.9.0
   
   # Efficiently cache and show images
@@ -28,6 +35,7 @@ dependencies:
   
   # Icons
   cupertino_icons: ^1.0.2
+  flutter_glow: ^0.3.0
 
 dev_dependencies:
   flutter_test:

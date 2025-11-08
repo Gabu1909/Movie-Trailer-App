@@ -13,7 +13,19 @@ class FavoritesProvider with ChangeNotifier {
   }
 
   Future<void> loadFavorites() async {
-    _favorites = await _dbHelper.getFavorites();
+    final allFavorites = await _dbHelper.getFavorites();
+    // Defensive coding: Filter out any movies that might have a bad ID
+    _favorites = allFavorites.where((m) {
+      try {
+        // This access will throw if the 'id' is not initialized (LateInitializationError)
+        m.id;
+        return true;
+      } catch (e) {
+        // Log the error and exclude the invalid movie from the list
+        print('Skipping a favorite with an invalid ID: $e');
+        return false;
+      }
+    }).toList();
     notifyListeners();
   }
 
@@ -22,11 +34,15 @@ class FavoritesProvider with ChangeNotifier {
   }
 
   Future<void> toggleFavorite(Movie movie) async {
-    if (isFavorite(movie.id)) {
-      await _dbHelper.removeFavorite(movie.id);
+    final isCurrentlyFavorite = isFavorite(movie.id);
+    if (isCurrentlyFavorite) {
+      // The movie object from the UI might have isFavorite=false.
+      // We use copyWith to ensure the DB sees the correct state to toggle from.
+      await _dbHelper.removeFavorite(movie.copyWith(isFavorite: true));
     } else {
       await _dbHelper.addFavorite(movie);
     }
+    // Reload from the database to ensure consistency.
     await loadFavorites();
   }
 }
