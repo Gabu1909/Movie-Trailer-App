@@ -1,33 +1,44 @@
 name: movie_app
 description: A new Flutter project.
-publish_to: 'none' 
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.3 <4.0.0'
+  sdk: ">=3.2.3 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  
+  shimmer: ^3.0.0
+  youtube_player_flutter: ^9.0.1
+  dio: ^5.4.3+1 # Để tải file hiệu quả
+  path_provider: ^2.1.3 # Để lấy đường dẫn lưu file trên thiết bị
+  video_player: ^2.8.6 # Phát video từ file đã tải về
+  intl: ^0.18.1 # Định dạng ngày tháng
+  shared_preferences: ^2.2.3 # Để lưu cài đặt đơn giản
+  flutter_staggered_animations: ^1.1.1 # Thêm package này cho hiệu ứng danh sách
+  flutter_local_notifications: ^17.1.2 # Để hiển thị thông báo cục bộ
+  share_plus: ^9.0.0
+
   # Network requests
   http: ^1.2.0
-  
+
   # State management
   provider: ^6.1.2
-  
+
   # Navigation
   go_router: ^13.2.0
-  
+
   # Local Database
   sqflite: ^2.3.2
   path: ^1.9.0
-  
+
   # Efficiently cache and show images
   cached_network_image: ^3.3.1
-  
+
   # Icons
   cupertino_icons: ^1.0.2
+  flutter_glow: ^0.3.0
 
 dev_dependencies:
   flutter_test:

@@ -29,4 +29,9 @@ class FavoritesProvider with ChangeNotifier {
     }
     await loadFavorites();
   }
+
+  Future<void> removeFavorite(int movieId) async {
+    await _dbHelper.removeFavorite(movieId);
+    await loadFavorites();
+  }
 }

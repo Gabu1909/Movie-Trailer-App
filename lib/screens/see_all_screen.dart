@@ -1,12 +1,22 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../api/api_constants.dart';
 import '../models/movie.dart';
+import '../models/cast.dart'; // Thêm import này
 import '../widgets/movie_card.dart';
 
 class SeeAllScreen extends StatelessWidget {
   final String title;
-  final List<Movie> movies;
+  final List<Movie>? movies;
+  final List<Cast>? cast; // Sửa thành List<Cast> để đảm bảo kiểu dữ liệu
 
-  const SeeAllScreen({super.key, required this.title, required this.movies});
+  const SeeAllScreen({
+    super.key,
+    required this.title,
+    this.movies,
+    this.cast,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,19 +24,77 @@ class SeeAllScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(title),
       ),
-      body: GridView.builder(
+      body: _buildGrid(),
+    );
+  }
+
+  Widget _buildGrid() {
+    if (movies != null && movies!.isNotEmpty) {
+      // Hiển thị Grid cho phim
+      return GridView.builder(
+        padding: const EdgeInsets.all(16.0), // Tăng padding tổng thể
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          // Đã cập nhật
+          crossAxisCount: 2, // Giữ 2 cột
+          childAspectRatio: 140 / 200, // Tỷ lệ của MovieCard (width/height)
+          crossAxisSpacing: 16, // Tăng khoảng cách ngang
+          mainAxisSpacing: 16, // Tăng khoảng cách dọc
+        ),
+        itemCount: movies!.length,
+        itemBuilder: (context, index) {
+          final movie = movies![index];
+          return MovieCard(movie: movie);
+        },
+      );
+    } else if (cast != null && cast!.isNotEmpty) {
+      // Hiển thị Grid cho diễn viên
+      return GridView.builder(
         padding: const EdgeInsets.all(8.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 2 / 3,
+          crossAxisCount: 3, // Hiển thị 3 diễn viên mỗi hàng
+          childAspectRatio: 3 / 4.5, // Tỷ lệ cho ảnh và tên
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
-        itemCount: movies.length,
+        itemCount: cast!.length,
         itemBuilder: (context, index) {
-          final movie = movies[index];
-          return MovieCard(movie: movie);
+          final actor = cast![index];
+          return _buildCastGridItem(context, actor);
         },
+      );
+    } else {
+      return const Center(child: Text('No items to display.'));
+    }
+  }
+
+  // Widget riêng để hiển thị một diễn viên trong grid
+  Widget _buildCastGridItem(BuildContext context, Cast cast) {
+    return GestureDetector(
+      onTap: () {
+        context.push('/actor/${cast.id}');
+      },
+      child: Column(
+        children: [
+          Expanded(
+            child: CircleAvatar(
+              radius: 50, // Kích thước lớn hơn
+              backgroundImage: cast.profilePath != null
+                  ? CachedNetworkImageProvider(
+                      '${ApiConstants.imageBaseUrl}${cast.profilePath}')
+                  : null,
+              child: cast.profilePath == null
+                  ? const Icon(Icons.person, size: 40)
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            cast.name,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
