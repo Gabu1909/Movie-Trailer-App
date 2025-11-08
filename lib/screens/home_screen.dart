@@ -359,6 +359,14 @@ class _HomeScreenState extends State<HomeScreen>
             alignment: Alignment.center,
             children: [
               AnimatedSwitcher(
+                // Nâng cấp: Sử dụng cross-fade để chuyển đổi mượt mà hơn
+                // giữa shimmer và danh sách phim.
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
                 duration: const Duration(milliseconds: 500),
                 child: provider.isTrendingLoading
                     ? PageView.builder(

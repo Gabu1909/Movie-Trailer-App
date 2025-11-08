@@ -5,7 +5,10 @@ import 'providers/movie_provider.dart'; // Import MovieProvider
 import 'providers/downloads_provider.dart'; // Import DownloadsProvider
 import 'providers/notification_provider.dart'; // Import NotificationProvider
 import 'providers/watchlist_provider.dart'; // Import WatchlistProvider
+import 'providers/bottom_nav_visibility_provider.dart'; // Import BottomNavVisibilityProvider
 import 'providers/settings_provider.dart'; // Import SettingsProvider
+import 'providers/movie_detail_provider.dart'; // Import MovieDetailProvider
+import 'providers/actor_detail_provider.dart'; // Import ActorDetailProvider
 import 'router/app_router.dart'; // Import AppRouter
 import 'services/local_notification_service.dart'; // Import LocalNotificationService
 import 'theme/constants.dart'; // Import theme constants
@@ -29,6 +32,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => WatchlistProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => BottomNavVisibilityProvider()),
+        ChangeNotifierProvider(create: (_) => ActorDetailProvider()),
+        ChangeNotifierProvider(create: (_) => MovieDetailProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         // DownloadsProvider phụ thuộc vào NotificationProvider
         ChangeNotifierProxyProvider<NotificationProvider, DownloadsProvider>(

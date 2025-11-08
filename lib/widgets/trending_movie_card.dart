@@ -81,13 +81,13 @@ class TrendingMovieCard extends StatelessWidget {
                                   : 0.95), // Scale nhẹ khi không ở trung tâm
                             child: CachedNetworkImage(
                               imageUrl:
-                                  '${ApiConstants.imageBaseUrlOriginal}${movie.posterPath}', // ✅ dùng bản full HD
+                                  '${ApiConstants.imageBaseUrlW780}${movie.posterPath}', // TỐI ƯU: Dùng ảnh w780 thay vì original
                               fit: BoxFit.cover,
                               filterQuality:
                                   FilterQuality.high, // ✅ ảnh sắc nét hơn
-                              memCacheWidth:
-                                  700, // ✅ cache đủ lớn (giúp tránh bị resize mờ)
-                              memCacheHeight: 1050,
+                              // Tối ưu: Tính toán kích thước cache hợp lý
+                              memCacheWidth: (400 * (MediaQuery.of(context).devicePixelRatio)).round(),
+                              memCacheHeight: (600 * (MediaQuery.of(context).devicePixelRatio)).round(),
                               fadeInDuration: const Duration(milliseconds: 300),
                               placeholder: (context, url) => const Center(
                                 child: CircularProgressIndicator(

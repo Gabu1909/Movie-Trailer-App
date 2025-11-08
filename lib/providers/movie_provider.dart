@@ -45,6 +45,9 @@ class MovieProvider with ChangeNotifier {
   Future<void> fetchAllData() async {
     _isLoading = true;
     notifyListeners();
+    // Thêm dòng này để kích hoạt shimmer cho Trending section khi refresh
+    _isTrendingLoading = true;
+    notifyListeners();
 
     // Xóa bộ đệm phim theo thể loại khi làm mới toàn bộ dữ liệu
     _cachedGenreMovies.clear();
@@ -76,6 +79,7 @@ class MovieProvider with ChangeNotifier {
     }
 
     _isLoading = false;
+    _isTrendingLoading = false; // Tắt shimmer cho Trending khi có dữ liệu
     notifyListeners();
   }
 

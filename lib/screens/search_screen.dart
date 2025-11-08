@@ -1,7 +1,14 @@
+import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../providers/movie_provider.dart';
-import '../widgets/movie_card.dart';
+import 'package:shimmer/shimmer.dart';
+import '../api/api_constants.dart';
+import '../models/cast.dart';
+import '../models/movie.dart';
+import '../providers/search_provider.dart'; // Import provider mới
+import 'feedback_service.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -11,67 +18,252 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _controller = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
-  void _onSearch(BuildContext context) {
-    final query = _controller.text;
-    if (query.isNotEmpty) {
-      Provider.of<MovieProvider>(context, listen: false).searchMovies(query);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        context.read<SearchProvider>().search(_searchController.text);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Movies'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF150E28),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
+          title: _buildSearchBar(),
+          bottom: TabBar(
+            indicatorColor: Colors.pinkAccent,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white60,
+            onTap: (index) {
+              context.read<SearchProvider>().setSearchType(
+                  index == 0 ? SearchType.movie : SearchType.person);
+            },
+            tabs: const [
+              Tab(text: 'Movies'),
+              Tab(text: 'Actors'),
+            ],
+          ),
+        ),
+        body: Consumer<SearchProvider>(
+          builder: (context, provider, child) {
+            if (provider.isLoading) {
+              return _buildLoadingIndicator();
+            }
+
+            if (provider.query.isEmpty) {
+              return _buildInitialState();
+            }
+
+            if (provider.searchType == SearchType.movie &&
+                provider.movies.isEmpty) {
+              return _buildEmptyState('No movies found for "${provider.query}"');
+            }
+
+            if (provider.searchType == SearchType.person &&
+                provider.actors.isEmpty) {
+              return _buildEmptyState('No actors found for "${provider.query}"');
+            }
+
+            return TabBarView(
+              children: [
+                _buildMovieResults(provider.movies),
+                _buildActorResults(provider.actors),
+              ],
+            );
+          },
+        ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: 'Enter movie title',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () => _onSearch(context),
-                ),
-                border: const OutlineInputBorder(),
-              ),
-              onSubmitted: (_) => _onSearch(context),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return TextField(
+      controller: _searchController,
+      autofocus: true,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Search movies or actors...',
+        hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+        border: InputBorder.none,
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear, color: Colors.white70),
+                onPressed: () => _searchController.clear(),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 2 / 3,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: 9,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[850]!,
+          highlightColor: Colors.grey[800]!,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          Expanded(
-            child: Consumer<MovieProvider>(
-              builder: (context, provider, child) {
-                if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (provider.searchedMovies.isEmpty &&
-                    _controller.text.isNotEmpty) {
-                  return const Center(child: Text('No results found.'));
-                }
-                return GridView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 2 / 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: provider.searchedMovies.length,
-                  itemBuilder: (context, index) {
-                    final movie = provider.searchedMovies[index];
-                    return MovieCard(movie: movie);
-                  },
-                );
-              },
-            ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInitialState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.movie_filter_outlined, color: Colors.white38, size: 80),
+          SizedBox(height: 16),
+          Text(
+            'Start typing to find your favorite movies and actors.',
+            style: TextStyle(color: Colors.white60, fontSize: 16),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.search_off, color: Colors.white38, size: 80),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.white60, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMovieResults(List<Movie> movies) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 2 / 3,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: movies.length,
+      itemBuilder: (context, index) {
+        final movie = movies[index];
+        return GestureDetector(
+          onTap: () {
+            FeedbackService.lightImpact(context);
+            context.push('/movie/${movie.id}');
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: movie.posterPath != null
+                ? CachedNetworkImage(
+                    imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(color: Colors.grey[850]),
+                    errorWidget: (context, url, error) => const Icon(Icons.movie, color: Colors.white38),
+                  )
+                : Container(
+                    color: Colors.grey[850],
+                    child: const Icon(Icons.movie, color: Colors.white38),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActorResults(List<Cast> actors) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: actors.length,
+      itemBuilder: (context, index) {
+        final actor = actors[index];
+        return Card(
+          color: Colors.white.withOpacity(0.1),
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            onTap: () {
+              FeedbackService.lightImpact(context);
+              context.push('/actor/${actor.id}', extra: actor);
+            },
+            leading: CircleAvatar(
+              radius: 30,
+              backgroundImage: actor.profilePath != null
+                  ? CachedNetworkImageProvider(
+                      '${ApiConstants.imageBaseUrl}${actor.profilePath}')
+                  : null,
+              child: actor.profilePath == null
+                  ? const Icon(Icons.person, color: Colors.white70)
+                  : null,
+            ),
+            title: Text(
+              actor.name,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              'Known for: ${actor.knownForDepartment ?? 'Acting'}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+          ),
+        );
+      },
+    );
+  }
+}
+
+extension CastExtension on Cast {
+  String? get knownForDepartment {
+    if (knownFor == null || knownFor!.isEmpty) return 'N/A';
+    // Lấy tên phim/show nổi bật nhất
+    final knownForTitles = knownFor!.map((e) => e['title'] ?? e['name'] as String?).where((title) => title != null).take(2).join(', ');
+    return knownForTitles.isNotEmpty ? knownForTitles : 'Acting';
   }
 }

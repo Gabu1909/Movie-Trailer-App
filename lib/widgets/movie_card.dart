@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:go_router/go_router.dart';
 import '../api/api_constants.dart';
 import '../models/movie.dart';
@@ -124,12 +125,11 @@ class _MovieCardState extends State<MovieCard> {
                     fit: BoxFit.cover,
                     memCacheWidth: memCacheWidth,
                     memCacheHeight: memCacheHeight,
-                    placeholder: (context, url) => Container(
-                      alignment: Alignment.center,
-                      color: Colors.black26,
-                      child: const CircularProgressIndicator(
-                        color: Colors.pinkAccent,
-                        strokeWidth: 2,
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: Colors.grey[850]!,
+                      highlightColor: Colors.grey[800]!,
+                      child: Container(
+                        color: Colors.white,
                       ),
                     ),
                     errorWidget: (context, url, error) => const Icon(
@@ -196,27 +196,15 @@ class _MovieCardState extends State<MovieCard> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.star,
-                                          color: Colors.amber, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        (movie.voteAverage ?? 0)
-                                            .toStringAsFixed(1),
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  // Chỉ hiển thị các ngôi sao
+                                  _buildStarIcons(movie.voteAverage),
+                                  // Hiển thị điểm số ở bên phải
                                   Text(
-                                    releaseYear,
+                                    movie.voteAverage.toStringAsFixed(1),
                                     style: const TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w400,
+                                      color: Colors.white70,
+                                      fontSize: 11, // Giảm font size
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -245,6 +233,25 @@ class _MovieCardState extends State<MovieCard> {
           ),
         ),
       ),
+    );
+  }
+
+  // Đổi tên hàm để chỉ build các icon sao
+  Widget _buildStarIcons(double voteAverage) {
+    final rating = voteAverage / 2; // Chuyển đổi thang điểm 10 thành 5
+    return Row(
+      mainAxisSize: MainAxisSize.min, // ← Quan trọng: Thu nhỏ Row
+      children: List.generate(5, (index) {
+        return Icon(
+          index < rating.floor()
+              ? Icons.star_rounded // Sao tròn đầy
+              : index < rating
+                  ? Icons.star_half_rounded // Nửa sao tròn
+                  : Icons.star_border_rounded, // Viền sao tròn
+          color: Colors.amber,
+          size: 14, // Giảm size để vừa hơn
+        );
+      }),
     );
   }
 }

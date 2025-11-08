@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
@@ -13,7 +14,9 @@ import '../models/movie.dart';
 import '../providers/downloads_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/watchlist_provider.dart';
+import '../providers/bottom_nav_visibility_provider.dart';
 import 'my_list_see_all_screen.dart'; // Import the enum
+import '../widgets/scroll_hiding_nav_wrapper.dart'; // Import widget mới
 import 'feedback_service.dart'; // Import service mới
 
 enum SortOption { byName, byDateAdded }
@@ -299,7 +302,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   onRefresh: _handleRefresh,
                   color: Colors.pinkAccent, // Màu của vòng xoay
                   backgroundColor:
-                      const Color(0xFF3A0CA3), // Màu nền của vòng xoay
+                      const Color(0xFF3A0CA3), // Màu nền của vòng xoay,
                   child: ListView(
                     padding: const EdgeInsets.only(top: 16, bottom: 40),
                     children: [
@@ -784,6 +787,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   Widget _buildDownloadItemWithAnimation(BuildContext context, Movie movie,
       DownloadsProvider provider, Animation<double>? animation, int? index) {
+    // Tối ưu: Tính toán kích thước cache cho ảnh
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int memCacheWidth = (60 * devicePixelRatio).round();
+    final int memCacheHeight = (90 * devicePixelRatio).round();
     final itemContent = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -796,6 +803,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           child: CachedNetworkImage(
             imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
             width: 60,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
             fit: BoxFit.cover,
           ),
         ),
@@ -951,6 +960,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   // Widget cho một mục trong danh sách yêu thích (MỚI)
   Widget _buildFavoriteItem(
       BuildContext context, Movie movie, FavoritesProvider provider) {
+    // Tối ưu: Tính toán kích thước cache cho ảnh
+    // Tối ưu: Tính toán kích thước cache cho ảnh (Đã sửa)
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int memCacheWidth = (60 * devicePixelRatio).round();
+    final int memCacheHeight = (90 * devicePixelRatio).round();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -964,6 +979,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           child: CachedNetworkImage(
             imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
             width: 60,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
             fit: BoxFit.cover,
           ),
         ),
@@ -1089,6 +1106,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   Widget _buildWatchlistItem(
       BuildContext context, Movie movie, WatchlistProvider provider) {
+    // Tối ưu: Tính toán kích thước cache cho ảnh
+    // Tối ưu: Tính toán kích thước cache cho ảnh (Đã sửa)
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int memCacheWidth = (60 * devicePixelRatio).round();
+    final int memCacheHeight = (90 * devicePixelRatio).round();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1102,6 +1125,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           child: CachedNetworkImage(
             imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
             width: 60,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
             fit: BoxFit.cover,
           ),
         ),

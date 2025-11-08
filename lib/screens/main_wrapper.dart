@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../theme/constants.dart';
+import '../providers/bottom_nav_visibility_provider.dart';
 
 class MainWrapper extends StatelessWidget {
   final Widget child;
@@ -38,18 +40,21 @@ class MainWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF240046), Color(0xFF5A189A)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+    // Bọc toàn bộ Scaffold trong một Container có gradient
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF240046), Color(0xFF5A189A)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // Nền trong suốt để thấy gradient
+        body: child,
+        bottomNavigationBar: BottomNavigationBar(
+          backgroundColor: Colors.transparent, // Nền trong suốt
+          elevation: 0, // Bỏ shadow mặc định
           type: BottomNavigationBarType.fixed,
           selectedItemColor: Colors.pinkAccent,
           unselectedItemColor: Colors.grey,
@@ -58,8 +63,10 @@ class MainWrapper extends StatelessWidget {
           onTap: (index) => _onItemTapped(index, context),
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Icons.sports_esports), label: "Explore"),
-            BottomNavigationBarItem(icon: Icon(Icons.live_tv), label: "Comming Soon"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.sports_esports), label: "Explore"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.live_tv), label: "Comming Soon"),
             BottomNavigationBarItem(icon: Icon(Icons.list), label: "My List"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
           ],

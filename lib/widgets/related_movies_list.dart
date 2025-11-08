@@ -140,55 +140,50 @@ class _RelatedMoviesListState extends State<RelatedMoviesList> {
       onTap: () {
         FeedbackService.playSound(context);
         FeedbackService.lightImpact(context);
-        context.push('/actor/${cast.id}');
+        context.push('/actor/${cast.id}', extra: cast);
       },
-      child: Container(
-        width: 90, // Tăng nhẹ chiều rộng
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.all(8.0),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05), // Thêm nền mờ
-          borderRadius: BorderRadius.circular(12), // Bo tròn góc
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                // Bọc CircleAvatar trong Container để áp dụng đổ bóng
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.purpleAccent
-                          .withOpacity(opacity), // Đổi màu đổ bóng
-                      blurRadius: blurRadius,
-                      spreadRadius: spreadRadius,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: avatarRadius,
-                  backgroundImage: cast.profilePath != null
-                      ? CachedNetworkImageProvider(
-                          '${ApiConstants.imageBaseUrl}${cast.profilePath}')
-                      : null,
-                  child: cast.profilePath == null
-                      ? const Icon(Icons.person, color: Colors.white)
-                      : null,
-                ),
+      child: SizedBox(
+        width: 90,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              // Bọc CircleAvatar trong Container để áp dụng đổ bóng
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.purpleAccent
+                        .withOpacity(opacity), // Đổi màu đổ bóng
+                    blurRadius: blurRadius,
+                    spreadRadius: spreadRadius,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                cast.name,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: CircleAvatar(
+                radius: avatarRadius,
+                backgroundImage: cast.profilePath != null
+                    ? CachedNetworkImageProvider(
+                        '${ApiConstants.imageBaseUrl}${cast.profilePath}',
+                        maxWidth: memCacheWidth,
+                        maxHeight: memCacheHeight,
+                      )
+                    : null,
+                child: cast.profilePath == null
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              cast.name,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

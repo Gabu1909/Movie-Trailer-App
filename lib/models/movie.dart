@@ -16,6 +16,7 @@ class Movie {
   final String overview;
   final String? posterPath;
   final double voteAverage;
+  final int voteCount; // Thêm trường này
 
   // --- NEW DATA ---
   final List<Genre>? genres; // Cho "Action" tag
@@ -34,6 +35,7 @@ class Movie {
     required this.overview,
     this.posterPath,
     required this.voteAverage,
+    required this.voteCount,
     // Thêm vào constructor
     this.genres, // Add to constructor
     this.runtime, // Add to constructor
@@ -74,6 +76,7 @@ class Movie {
       overview: json['overview'],
       posterPath: json['poster_path'],
       voteAverage: (json['vote_average'] as num).toDouble(),
+      voteCount: json['vote_count'] ?? 0,
 
       // --- ÁNH XẠ DỮ LIỆU MỚI ---
       genres: genresList?.map((g) => Genre.fromJson(g)).toList(),
@@ -99,6 +102,7 @@ class Movie {
       'overview': overview,
       'posterPath': posterPath,
       'voteAverage': voteAverage,
+      'voteCount': voteCount,
       'isInWatchlist': 0, // Mặc định khi lưu từ API
       'mediaType': mediaType,
       'genres': _genresListToString(genres), // Convert list to string
@@ -115,6 +119,7 @@ class Movie {
       overview: map['overview'],
       posterPath: map['posterPath'],
       voteAverage: map['voteAverage'],
+      voteCount: map['voteCount'] ?? 0,
       mediaType: map['mediaType'] ?? 'movie',
       // Populate genres and runtime from DB
       genres: (map['genres'] as String?)
