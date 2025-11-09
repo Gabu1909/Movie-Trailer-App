@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/genre.dart';
 import '../models/actor_detail.dart';
 import '../models/movie.dart';
+import '../models/cast.dart';
 import 'api_constants.dart';
 
 class ApiService {
@@ -13,6 +15,7 @@ class ApiService {
   }
 
   Future<List<Movie>> getPopularMovies() async {
+    // Dùng Popular cho mục "Trending"
     return _getMovies(
         '${ApiConstants.baseUrl}/movie/popular?api_key=${ApiConstants.apiKey}');
   }
@@ -37,23 +40,51 @@ class ApiService {
   }
 
   // === DISCOVER WITH FILTERS (Thêm mới) ===
+  // Chỉ lấy MOVIES (phim lẻ), không có TV shows
   Future<List<Movie>> discoverMovies(
       String genreIds, String countryCodes) async {
-    final queryParams = <String, String>{
-      'api_key': ApiConstants.apiKey,
-    };
+    try {
+      final queryParams = <String, String>{
+        'api_key': ApiConstants.apiKey,
+        'sort_by': 'popularity.desc',
+        'page': '1',
+      };
 
-    if (genreIds.isNotEmpty) {
-      queryParams['with_genres'] = genreIds;
+      if (genreIds.isNotEmpty) {
+        queryParams['with_genres'] = genreIds;
+      }
+
+      if (countryCodes.isNotEmpty) {
+        queryParams['with_origin_country'] = countryCodes;
+      }
+
+      final uri = Uri.parse('${ApiConstants.baseUrl}/discover/movie')
+          .replace(queryParameters: queryParams);
+
+      print('🌐 API Request: $uri');
+
+      final response = await http.get(uri);
+
+      print('📡 Response Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final decodedBody = json.decode(response.body);
+        final results = decodedBody['results'] as List;
+
+        print('📊 Results: ${results.length} movies found');
+
+        if (results.isEmpty) {
+          print('⚠️ No movies found for these filters');
+        }
+
+        return results.map((movie) => Movie.fromJson(movie)).toList();
+      } else {
+        throw Exception('API Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ API Exception: $e');
+      throw Exception('Failed to load movies: $e');
     }
-
-    if (countryCodes.isNotEmpty) {
-      queryParams['with_origin_country'] = countryCodes;
-    }
-
-    final uri = Uri.parse('${ApiConstants.baseUrl}/discover/movie')
-        .replace(queryParameters: queryParams);
-    return _getMovies(uri.toString());
   }
 
   Future<List<Movie>> discoverTVShows(
@@ -95,11 +126,33 @@ class ApiService {
         '${ApiConstants.baseUrl}/search/movie?query=$query&api_key=${ApiConstants.apiKey}');
   }
 
+  Future<List<Cast>> searchActors(String query) async {
+    try {
+      final response = await http.get(Uri.parse(
+          '${ApiConstants.baseUrl}/search/person?query=$query&api_key=${ApiConstants.apiKey}'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['results'] as List;
+        return results.map((json) => Cast.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to search actors');
+      }
+    } catch (e) {
+      debugPrint('Error searching actors: $e');
+      return [];
+    }
+  }
+
   Future<Movie> getMovieDetail(int movieId) async {
     final response = await http.get(Uri.parse(
         '${ApiConstants.baseUrl}/movie/$movieId?api_key=${ApiConstants.apiKey}&append_to_response=credits,recommendations,videos'));
     if (response.statusCode == 200) {
-      return Movie.fromJson(json.decode(response.body));
+      final jsonData = json.decode(response.body);
+      if (jsonData['videos'] != null) {
+        print('🎥 Raw videos data: ${jsonData['videos']}');
+      }
+      return Movie.fromJson(jsonData);
     } else {
       throw Exception('Failed to load movie detail');
     }
@@ -116,6 +169,7 @@ class ApiService {
     }
   }
 
+  // Lấy thông tin chi tiết của diễn viên
   Future<ActorDetail> getActorDetails(int actorId) async {
     final dio = Dio();
     try {

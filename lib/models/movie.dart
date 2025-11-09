@@ -1,13 +1,5 @@
 import 'genre.dart'; // Import Genre from its own file
-
-class Cast {
-  final int id;
-  final String name;
-  final String? profilePath;
-  Cast({required this.id, required this.name, this.profilePath});
-  factory Cast.fromJson(Map<String, dynamic> json) => Cast(
-      id: json['id'], name: json['name'], profilePath: json['profile_path']);
-}
+import 'cast.dart'; // Import Cast from its own file
 
 class Crew {
   final String name;
@@ -24,6 +16,7 @@ class Movie {
   final String overview;
   final String? posterPath;
   final double voteAverage;
+  final int voteCount; // Thêm trường này
 
   // --- NEW DATA ---
   final List<Genre>? genres; // Cho "Action" tag
@@ -33,10 +26,8 @@ class Movie {
   final List<Movie>? recommendations; // Cho "RELATED VIDEO"
   final String? trailerKey; // Key của video trailer trên YouTube
   final String mediaType; // 'movie' hoặc 'tv'
-
-  // --- LOCAL DB DATA ---
-  final bool isFavorite;
-  final bool isInWatchlist;
+  final DateTime? releaseDate; // Thêm trường này
+  final DateTime? dateAdded; // Thêm trường ngày thêm vào danh sách
 
   Movie({
     required this.id,
@@ -44,6 +35,7 @@ class Movie {
     required this.overview,
     this.posterPath,
     required this.voteAverage,
+    required this.voteCount,
     // Thêm vào constructor
     this.genres, // Add to constructor
     this.runtime, // Add to constructor
@@ -52,8 +44,8 @@ class Movie {
     this.recommendations, // Add to constructor
     this.trailerKey, // Add to constructor
     this.mediaType = 'movie', // Mặc định là 'movie'
-    this.isFavorite = false, // Default to false
-    this.isInWatchlist = false, // Default to false
+    this.releaseDate, // Thêm vào constructor
+    this.dateAdded, // Thêm vào constructor
   });
 
   factory Movie.fromJson(Map<String, dynamic> json) {
@@ -64,16 +56,48 @@ class Movie {
         json['recommendations'] as Map<String, dynamic>?;
     final videosList = json['videos']?['results'] as List?;
 
+    // Debug: In ra toàn bộ videos
+    if (videosList != null) {
+      print('🎥 Raw videos data: $videosList');
+    }
+
     // Tìm trailer chính thức từ danh sách video
     String? officialTrailerKey;
-    if (videosList != null) {
-      final officialTrailer = videosList.firstWhere(
-        (video) => video['type'] == 'Trailer' && video['official'] == true,
-        orElse: () => videosList.firstWhere(
-            (video) => video['type'] == 'Trailer',
-            orElse: () => null),
-      );
-      officialTrailerKey = officialTrailer?['key'];
+    if (videosList != null && videosList.isNotEmpty) {
+      try {
+        final trailer = videosList.firstWhere(
+          (video) =>
+              video['type']?.toString().toLowerCase() == 'trailer' &&
+              video['site']?.toString().toLowerCase() == 'youtube',
+          orElse: () => null,
+        );
+        if (trailer != null && trailer['key'] != null) {
+          // CRITICAL: Đảm bảo key là String và có độ dài hợp lệ (11 ký tự cho YouTube)
+          final rawKey = trailer['key'];
+          if (rawKey is String) {
+            officialTrailerKey = rawKey.trim();
+          } else if (rawKey is int) {
+            // Nếu là int, convert sang String
+            officialTrailerKey = rawKey.toString();
+          } else {
+            // Fallback: convert bất kỳ kiểu nào sang String
+            officialTrailerKey = rawKey.toString();
+          }
+
+          // Validate YouTube video ID format (phải là 11 ký tự)
+          if (officialTrailerKey.length == 11) {
+            print(
+                '✅ Valid trailer key: $officialTrailerKey (${officialTrailerKey.runtimeType})');
+          } else {
+            print(
+                '⚠️ Invalid trailer key length: ${officialTrailerKey.length} for key: $officialTrailerKey');
+            officialTrailerKey = null;
+          }
+        }
+      } catch (e) {
+        print('❌ Error parsing trailer: $e');
+        officialTrailerKey = null;
+      }
     }
 
     return Movie(
@@ -84,6 +108,7 @@ class Movie {
       overview: json['overview'],
       posterPath: json['poster_path'],
       voteAverage: (json['vote_average'] as num).toDouble(),
+      voteCount: json['vote_count'] ?? 0,
 
       // --- ÁNH XẠ DỮ LIỆU MỚI ---
       genres: genresList?.map((g) => Genre.fromJson(g)).toList(),
@@ -96,6 +121,8 @@ class Movie {
           ?.map((m) => Movie.fromJson(m))
           .toList(),
       trailerKey: officialTrailerKey,
+      releaseDate:
+          DateTime.tryParse(json['release_date'] ?? ''), // Parse release_date
     );
   }
 
@@ -107,11 +134,13 @@ class Movie {
       'overview': overview,
       'posterPath': posterPath,
       'voteAverage': voteAverage,
-      'isFavorite': isFavorite ? 1 : 0,
-      'isInWatchlist': isInWatchlist ? 1 : 0,
+      'voteCount': voteCount,
+      'isInWatchlist': 0, // Mặc định khi lưu từ API
       'mediaType': mediaType,
       'genres': _genresListToString(genres), // Convert list to string
       'runtime': runtime,
+      'releaseDate': releaseDate?.toIso8601String(), // Store as ISO string
+      'dateAdded': dateAdded?.toIso8601String(),
     };
   }
 
@@ -122,9 +151,8 @@ class Movie {
       overview: map['overview'],
       posterPath: map['posterPath'],
       voteAverage: map['voteAverage'],
+      voteCount: map['voteCount'] ?? 0,
       mediaType: map['mediaType'] ?? 'movie',
-      isFavorite: map['isFavorite'] == 1,
-      isInWatchlist: map['isInWatchlist'] == 1,
       // Populate genres and runtime from DB
       genres: (map['genres'] as String?)
           ?.split(',')
@@ -133,6 +161,9 @@ class Movie {
               name: '')) // Name is not stored, so it's empty for DB retrieval
           .toList(),
       runtime: map['runtime'] as int?,
+      releaseDate:
+          DateTime.tryParse(map['releaseDate'] ?? ''), // Parse from DB string
+      dateAdded: DateTime.tryParse(map['dateAdded'] ?? ''),
     );
   }
 
@@ -141,13 +172,14 @@ class Movie {
     return genres?.map((g) => g.id.toString()).join(',');
   }
 
-  // The missing copyWith method
+  // copyWith method for creating modified copies
   Movie copyWith({
     int? id,
     String? title,
     String? overview,
     String? posterPath,
     double? voteAverage,
+    int? voteCount,
     List<Genre>? genres,
     int? runtime,
     List<Cast>? cast,
@@ -155,6 +187,8 @@ class Movie {
     List<Movie>? recommendations,
     String? trailerKey,
     String? mediaType,
+    DateTime? releaseDate,
+    DateTime? dateAdded,
     bool? isFavorite,
     bool? isInWatchlist,
   }) {
@@ -164,6 +198,7 @@ class Movie {
       overview: overview ?? this.overview,
       posterPath: posterPath ?? this.posterPath,
       voteAverage: voteAverage ?? this.voteAverage,
+      voteCount: voteCount ?? this.voteCount,
       genres: genres ?? this.genres,
       runtime: runtime ?? this.runtime,
       cast: cast ?? this.cast,
@@ -171,8 +206,8 @@ class Movie {
       recommendations: recommendations ?? this.recommendations,
       trailerKey: trailerKey ?? this.trailerKey,
       mediaType: mediaType ?? this.mediaType,
-      isFavorite: isFavorite ?? this.isFavorite,
-      isInWatchlist: isInWatchlist ?? this.isInWatchlist,
+      releaseDate: releaseDate ?? this.releaseDate,
+      dateAdded: dateAdded ?? this.dateAdded,
     );
   }
 }

@@ -27,9 +27,23 @@ class WatchlistProvider with ChangeNotifier {
   }
 
   Future<void> toggleWatchlist(Movie movie) async {
-    // The DB helper now handles the logic of toggling the flag.
     await _dbHelper.toggleWatchlist(movie);
-    // Reload from the database to ensure consistency.
-    await loadWatchlist();
+    final isNowInWatchlist = !isInWatchlist(movie.id);
+    if (isNowInWatchlist) {
+      _watchlistMovies.add(movie);
+      _watchlistIds.add(movie.id);
+    } else {
+      _watchlistMovies.removeWhere((m) => m.id == movie.id);
+      _watchlistIds.remove(movie.id);
+    }
+    notifyListeners();
+  }
+
+  Future<void> removeWatchlist(int movieId) async {
+    await _dbHelper
+        .removeWatchlist(movieId); // Assuming _dbHelper has removeWatchlist
+    _watchlistMovies.removeWhere((m) => m.id == movieId);
+    _watchlistIds.remove(movieId);
+    notifyListeners();
   }
 }

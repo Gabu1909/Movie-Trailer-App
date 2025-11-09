@@ -1,7 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
+// import 'package:share_plus/share_plus.dart'; // Tạm comment để tránh lỗi
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart'; // Thêm import để sử dụng SystemSound
+import 'package:intl/intl.dart'; // Import for DateFormat
+// import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Tạm comment
 import '../api/api_constants.dart';
 import '../providers/movie_provider.dart'; // Import MovieProvider
 import '../models/genre.dart';
@@ -9,9 +14,15 @@ import '../models/movie.dart';
 import '../providers/downloads_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/watchlist_provider.dart';
+import '../providers/bottom_nav_visibility_provider.dart';
 import 'my_list_see_all_screen.dart'; // Import the enum
+import '../widgets/scroll_hiding_nav_wrapper.dart'; // Import widget mới
+import 'feedback_service.dart'; // Import service mới
 
 enum SortOption { byName, byDateAdded }
+
+// Enum để xác định lý do phim được nổi bật (được đưa ra ngoài class)
+enum FeaturedReason { none, highestRated, recentlyAdded }
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -28,22 +39,99 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   List<Genre> _availableGenres = [];
   SortOption _currentSortOption =
       SortOption.byDateAdded; // Giữ lại logic sắp xếp
-  late TabController _tabController;
+
+  final GlobalKey<AnimatedListState> _downloadsListKey =
+      GlobalKey<AnimatedListState>();
+  List<Movie> _downloads = []; // Danh sách cục bộ để quản lý AnimatedList
+
+  // Lưu reference để dùng trong dispose
+  DownloadsProvider? _downloadsProvider;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    _availableGenres = context.read<MovieProvider>().genres;
-    _tabController = TabController(length: 2, vsync: this);
+    final movieProvider = context.read<MovieProvider>();
+    _downloadsProvider = context.read<DownloadsProvider>();
+
+    _availableGenres = movieProvider.genres;
+
+    // Khởi tạo danh sách cục bộ và đăng ký lắng nghe thay đổi từ provider
+    _downloads = List.from(_downloadsProvider!.downloadedMovies);
+    _downloads = _sortMovies(
+        List.from(_downloadsProvider!.downloadedMovies)); // Sort initially
+    _downloadsProvider!.addListener(_onDownloadsChanged);
   }
 
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _downloadsProvider
+        ?.removeListener(_onDownloadsChanged); // Sử dụng reference đã lưu
     super.dispose();
-    _tabController.dispose();
+  }
+
+  // Hàm xử lý khi DownloadsProvider thay đổi
+  void _onDownloadsChanged() {
+    final newDownloads = context.read<DownloadsProvider>().downloadedMovies;
+    if (!mounted) return; // Crucial check to prevent "deactivated widget" error
+
+    final sortedNewDownloads =
+        _sortMovies(newDownloads); // Always work with sorted lists
+
+    // Find removed movies first to get correct indices for AnimatedList
+    final List<Movie> removedMovies = _downloads
+        .where((movie) =>
+            !sortedNewDownloads.any((newMovie) => newMovie.id == movie.id))
+        .toList();
+
+    for (final movie in removedMovies) {
+      final index = _downloads.indexWhere((m) => m.id == movie.id);
+      if (index != -1) {
+        final removedMovie = _downloads[index];
+        _downloads.removeAt(index);
+        _downloadsListKey.currentState?.removeItem(
+          index,
+          (context, animation) => _buildDownloadItemWithAnimation(
+            context,
+            removedMovie,
+            context.read<DownloadsProvider>(),
+            animation,
+            index,
+          ),
+          duration: const Duration(milliseconds: 500),
+        );
+      }
+    }
+
+    // Find added movies
+    final List<Movie> addedMovies = sortedNewDownloads
+        .where(
+            (movie) => !_downloads.any((oldMovie) => oldMovie.id == movie.id))
+        .toList();
+
+    for (final movie in addedMovies) {
+      // Determine the correct insertion index in the *current* _downloads list
+      // based on the sorting criteria.
+      int insertionIndex = 0;
+      while (insertionIndex < _downloads.length &&
+          _sortMovies([_downloads[insertionIndex], movie]).first.id !=
+              movie.id) {
+        insertionIndex++;
+      }
+
+      _downloads.insert(insertionIndex, movie); // Insert into local list
+      _downloadsListKey.currentState?.insertItem(
+        insertionIndex,
+        duration: const Duration(milliseconds: 500),
+      );
+    }
+
+    // After all AnimatedList operations, ensure _downloads is fully synchronized and sorted.
+    setState(() {
+      _downloads = _sortMovies(List.from(_downloads));
+    });
   }
 
   void _onSearchChanged() {
@@ -59,19 +147,35 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     });
   }
 
+  // Hàm để xử lý sự kiện kéo để làm mới
+  Future<void> _handleRefresh() async {
+    // Gọi các hàm load dữ liệu từ các provider tương ứng
+    await Future.wait([
+      context
+          .read<DownloadsProvider>()
+          .loadDownloadedMovies(), // Đã sửa tên phương thức
+      context.read<FavoritesProvider>().loadFavorites(),
+      context.read<WatchlistProvider>().loadWatchlist(),
+    ]);
+
+    // Hiển thị SnackBar sau khi làm mới xong
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lists have been updated!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Watch MovieProvider for genres
     _availableGenres = context.watch<MovieProvider>().genres;
 
-    // Phân loại phim và TV show
-    final allFavorites = context.watch<FavoritesProvider>().favorites;
-    final favoriteMovies =
-        allFavorites.where((m) => m.mediaType == 'movie').toList();
-    final favoriteTvShows =
-        allFavorites.where((m) => m.mediaType == 'tv').toList();
-
-    // Lấy danh sách gốc từ providers
+    // Lấy danh sách gốc từ providers và cập nhật danh sách cục bộ
     List<Movie> originalDownloads =
         context.watch<DownloadsProvider>().downloadedMovies;
     List<Movie> originalFavorites =
@@ -81,27 +185,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     // Sắp xếp danh sách gốc dựa trên tùy chọn đã chọn
     List<Movie> allDownloads = _sortMovies(originalDownloads);
-    List<Movie> allFavoriteMovies = _sortMovies(favoriteMovies); // Đã phân loại
-    List<Movie> allFavoriteTvShows =
-        _sortMovies(favoriteTvShows); // Đã phân loại
-
-    // --- Logic lọc ---
-    // (Phần còn lại của logic lọc sẽ hoạt động trên các danh sách đã được sắp xếp và phân loại)
-    // ...
-
-    // final allDownloads = context.watch<DownloadsProvider>().downloadedMovies;
-    // final allFavorites = context.watch<FavoritesProvider>().favorites;
-    // final allWatchlist = context.watch<WatchlistProvider>().watchlistMovies;
-    final allWatchlistMovies = _sortMovies(
-        originalWatchlist.where((m) => m.mediaType == 'movie').toList());
-    final allWatchlistTvShows = _sortMovies(
-        originalWatchlist.where((m) => m.mediaType == 'tv').toList());
-
-    List<Movie> filteredDownloads = [];
-    List<Movie> filteredFavoriteMovies = [];
-    List<Movie> filteredFavoriteTvShows = [];
-    List<Movie> filteredWatchlistMovies = [];
-    List<Movie> filteredWatchlistTvShows = [];
+    List<Movie> allFavorites = _sortMovies(originalFavorites);
+    List<Movie> allWatchlist = _sortMovies(originalWatchlist);
 
     // --- Apply Search Filter ---
     final List<Movie> searchFilteredDownloads = _searchQuery.isEmpty
@@ -110,59 +195,68 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             .where((movie) =>
                 movie.title.toLowerCase().contains(_searchQuery.toLowerCase()))
             .toList();
-    final List<Movie> searchFilteredFavoriteMovies = _searchQuery.isEmpty
-        ? allFavoriteMovies
-        : allFavoriteMovies
+    final List<Movie> searchFilteredFavorites = _searchQuery.isEmpty
+        ? allFavorites
+        : allFavorites
             .where((movie) =>
                 movie.title.toLowerCase().contains(_searchQuery.toLowerCase()))
             .toList();
-    final List<Movie> searchFilteredFavoriteTvShows = _searchQuery.isEmpty
-        ? allFavoriteTvShows
-        : allFavoriteTvShows
-            .where((movie) =>
-                movie.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .toList();
-
-    final List<Movie> searchFilteredWatchlistMovies = _searchQuery.isEmpty
-        ? allWatchlistMovies
-        : allWatchlistMovies
-            .where((m) =>
-                m.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .toList();
-
-    final List<Movie> searchFilteredWatchlistTvShows = _searchQuery.isEmpty
-        ? allWatchlistTvShows
-        : allWatchlistTvShows
+    final List<Movie> searchFilteredWatchlist = _searchQuery.isEmpty
+        ? allWatchlist
+        : allWatchlist
             .where((m) =>
                 m.title.toLowerCase().contains(_searchQuery.toLowerCase()))
             .toList();
 
     // --- Apply Genre Filter ---
-    filteredDownloads = _filterMoviesByGenre(searchFilteredDownloads);
-    filteredFavoriteMovies = _filterMoviesByGenre(searchFilteredFavoriteMovies);
-    filteredFavoriteTvShows =
-        _filterMoviesByGenre(searchFilteredFavoriteTvShows);
-    filteredWatchlistMovies =
-        _filterMoviesByGenre(searchFilteredWatchlistMovies);
-    filteredWatchlistTvShows =
-        _filterMoviesByGenre(searchFilteredWatchlistTvShows);
+    List<Movie> filteredDownloads =
+        _filterMoviesByGenre(searchFilteredDownloads);
+    List<Movie> filteredFavorites =
+        _filterMoviesByGenre(searchFilteredFavorites);
+    List<Movie> filteredWatchlist =
+        _filterMoviesByGenre(searchFilteredWatchlist);
 
     // Lấy phim nổi bật đầu tiên (nếu có)
     // Chỉ hiển thị phim nổi bật nếu không có tìm kiếm đang diễn ra
-    final allFeaturedItems = [
-      ...allDownloads,
-      ...allFavoriteMovies,
-      ...allWatchlistMovies,
-      ...allFavoriteTvShows,
-      ...allWatchlistTvShows
+    // Sử dụng các danh sách gốc để xác định "recently added" nếu cần
+    final allCombinedItems = [
+      ...originalDownloads,
+      ...originalFavorites,
+      ...originalWatchlist,
     ];
 
-    final featuredMovie = _searchQuery.isEmpty && _selectedGenreId == null
-        ? (allFeaturedItems.isNotEmpty ? allFeaturedItems.first : null)
-        : null;
+    Movie? featuredMovie;
+    FeaturedReason reason = FeaturedReason.none;
+
+    if (_searchQuery.isEmpty &&
+        _selectedGenreId == null &&
+        allCombinedItems.isNotEmpty) {
+      // Sắp xếp để tìm phim được thêm gần đây nhất (phải có dateAdded)
+      final List<Movie> recentlyAddedSorted = List.from(allCombinedItems)
+        ..sort((a, b) {
+          if (a.dateAdded == null) return 1;
+          if (b.dateAdded == null) return -1;
+          return b.dateAdded!.compareTo(a.dateAdded!);
+        });
+      final Movie? mostRecent =
+          recentlyAddedSorted.isNotEmpty ? recentlyAddedSorted.first : null;
+
+      // Sắp xếp để tìm phim có rating cao nhất
+      final List<Movie> highestRatedSorted = List.from(allCombinedItems)
+        ..sort((a, b) => b.voteAverage.compareTo(a.voteAverage));
+      featuredMovie = highestRatedSorted.first;
+
+      // Ưu tiên hiển thị "Recently Added" nếu phim có rating cao nhất cũng là phim mới nhất
+      if (mostRecent != null &&
+          featuredMovie != null &&
+          featuredMovie.id == mostRecent.id) {
+        reason = FeaturedReason.recentlyAdded;
+      } else {
+        reason = FeaturedReason.highestRated;
+      }
+    }
 
     return Scaffold(
-      extendBodyBehindAppBar: true, // Allows body to go behind AppBar
       backgroundColor: Colors.black,
       body: Container(
         decoration: const BoxDecoration(
@@ -172,96 +266,70 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             end: Alignment.bottomRight,
           ),
         ),
-        child: Column(
-          children: [
-            // === KHU VỰC HEADER MỚI ===
-            Padding(
-              padding: const EdgeInsets.only(
-                  top: kToolbarHeight, left: 20, right: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  // Tiêu đề "My List"
-                  const Text(
-                    'My List',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
-                  ),
-                  const SizedBox(height: 16),
-                  // TabBar
-                  TabBar(
-                    controller: _tabController,
-                    indicatorColor: Colors.pinkAccent,
-                    indicatorWeight: 3.0,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelStyle: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
-                    unselectedLabelStyle: const TextStyle(fontSize: 16),
-                    tabs: const [Tab(text: 'Movies'), Tab(text: 'TV Shows')],
-                  ),
-                  const Divider(height: 1, color: Colors.white24),
-                  const SizedBox(height: 16),
-                  // Thanh tìm kiếm và các bộ lọc khác
-                  _buildSearchBar(context),
-                  _buildGenreFilter(),
-                  _buildSortOptions(),
-                  _buildClearFiltersButton(),
-                ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              // === KHU VỰC HEADER MỚI ===
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Hàng chứa tiêu đề và thanh tìm kiếm/bộ lọc
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'My List',
+                          style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
+                        ),
+                        const SizedBox(width: 16), // Thêm khoảng cách ở đây
+                        // Thu gọn thanh tìm kiếm và bộ lọc vào đây
+                        Flexible(child: _buildSearchAndFilterBar(context)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Divider(height: 1, color: Colors.white24),
+                    _buildClearFiltersButton(),
+                  ],
+                ),
               ),
-            ),
-            // TabBarView để hiển thị nội dung tương ứng
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  // Tab Movies
-                  _buildTabContent(featuredMovie, filteredDownloads,
-                      filteredFavoriteMovies, filteredWatchlistMovies),
-                  // Tab TV Shows
-                  _buildTabContent(null, [], filteredFavoriteTvShows,
-                      filteredWatchlistTvShows),
-                ],
+              // Danh sách nội dung
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _handleRefresh,
+                  color: Colors.pinkAccent, // Màu của vòng xoay
+                  backgroundColor:
+                      const Color(0xFF3A0CA3), // Màu nền của vòng xoay,
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 16, bottom: 40),
+                    children: [
+                      if (featuredMovie !=
+                          null) // Chỉ có một lời gọi _buildFeaturedMovie
+                        _buildFeaturedMovie(context, featuredMovie, reason),
+                      if (_searchQuery.isEmpty && _selectedGenreId == null)
+                        const SizedBox(height: 20),
+                      if (filteredDownloads.isNotEmpty) ...[
+                        _buildDownloadsSection(
+                            context), // Không truyền filteredDownloads nữa
+                        const SizedBox(height: 20),
+                      ],
+                      _buildFavoritesSection(
+                          context, filteredFavorites, "All Favorites"),
+                      const SizedBox(height: 20),
+                      _buildWatchlistSection(
+                          context, filteredWatchlist, "Full Watchlist"),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  // Widget để xây dựng nội dung cho mỗi tab
-  Widget _buildTabContent(Movie? featured, List<Movie> downloads,
-      List<Movie> favorites, List<Movie> watchlist) {
-    return ListView(
-      padding: const EdgeInsets.only(top: 16, bottom: 40),
-      children: [
-        if (featured != null) _buildFeaturedMovie(context, featured),
-        if (_searchQuery.isEmpty && _selectedGenreId == null)
-          const SizedBox(height: 20),
-        if (downloads.isNotEmpty) ...[
-          _buildDownloadsSection(context, downloads),
-          const SizedBox(height: 20),
-        ],
-        _buildFavoritesSection(context, favorites, "Favorite Items"),
-        const SizedBox(height: 20),
-        _buildWatchlistSection(context, watchlist, "Watchlist Items"),
-      ],
-    );
-  }
-
-  Widget _buildSectionSeparator(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 1.2),
       ),
     );
   }
@@ -274,102 +342,359 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         sortedList.sort((a, b) => a.title.compareTo(b.title));
         break;
       case SortOption.byDateAdded:
-        sortedList = sortedList.reversed.toList();
-        break;
+        sortedList.sort((a, b) {
+          if (a.dateAdded == null || b.dateAdded == null) return 0;
+          return b.dateAdded!.compareTo(a.dateAdded!);
+        });
     }
     return sortedList;
   }
 
+  void _toggleWatchlist(BuildContext context, Movie movie) {
+    context.read<WatchlistProvider>().toggleWatchlist(movie);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.read<WatchlistProvider>().isInWatchlist(movie.id)
+              ? '${movie.title} added to Watchlist!'
+              : '${movie.title} removed from Watchlist!',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   // === FEATURED MOVIE ===
-  Widget _buildFeaturedMovie(BuildContext context, Movie movie) {
-    final isMovie = movie.mediaType == 'movie';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                GestureDetector(
-                  onTap: () => context
-                      .push(isMovie ? '/movie/${movie.id}' : '/tv/${movie.id}'),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl:
-                            '${ApiConstants.imageBaseUrlOriginal}${movie.posterPath}',
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
+  // Helper function to navigate to movie/TV detail
+  void _goToMovieDetail(BuildContext context, Movie movie) {
+    context.push('/movie/${movie.id}');
+  }
+
+  // Helper function to share movie info
+  void _shareMovie(BuildContext context, Movie movie) {
+    FeedbackService.playSound(context);
+    FeedbackService.lightImpact(context);
+
+    // Tạm thời disable share vì package lỗi
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Share feature temporarily disabled')),
+    );
+  }
+
+  // Helper function to format genres
+  String _getGenreNames(Movie movie) {
+    if (movie.genres?.isEmpty ?? true) return '';
+    final genreNames = movie.genres!
+        .map((g) => _availableGenres
+            .firstWhere(
+              (ag) => ag.id == g.id,
+              orElse: () => Genre(id: 0, name: ''),
+            )
+            .name)
+        .where((name) => name.isNotEmpty)
+        .toList();
+    return genreNames.join(', ');
+  }
+
+  // Helper function to format runtime only
+  String _formatRuntimeOnly(int? runtime) {
+    if (runtime == null || runtime == 0) return '';
+    final hours = runtime ~/ 60;
+    final minutes = runtime % 60;
+    if (hours > 0 && minutes > 0) return '${hours}h ${minutes}m';
+    if (hours > 0) return '${hours}h';
+    if (minutes > 0) return '${minutes}m';
+    return '';
+  }
+
+  // Helper widget for action buttons on the hero banner
+  Widget _buildHeroActionButton(IconData icon, String label,
+      {required VoidCallback onTap}) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Widget cho phim nổi bật
+  Widget _buildFeaturedMovie(
+      BuildContext context, Movie movie, FeaturedReason reason) {
+    String featuredLabel = '';
+    IconData featuredIcon = Icons.info;
+
+    switch (reason) {
+      case FeaturedReason.highestRated:
+        featuredLabel = 'Highest Rated';
+        featuredIcon = Icons.star;
+        break;
+      case FeaturedReason.recentlyAdded:
+        featuredLabel = 'Recently Added';
+        featuredIcon = Icons.new_releases;
+        break;
+      case FeaturedReason.none:
+        // Không làm gì cả
+        break;
+    }
+
+    return GestureDetector(
+      onTap: () => _goToMovieDetail(context, movie),
+      child: Container(
+        height: 400, // Tăng chiều cao cho banner
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Background Image (full width)
+              CachedNetworkImage(
+                imageUrl:
+                    '${ApiConstants.imageBaseUrlOriginal}${movie.posterPath}',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+              // 2. Gradient Overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.0), // Trên trong suốt
+                      Colors.black.withOpacity(0.2), // Giữa hơi mờ
+                      Colors.black.withOpacity(0.8), // Dưới đậm để dễ đọc text
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+              // 3. Content (Text and Buttons)
+              Positioned(
+                bottom: 20,
+                left: 20,
+                right: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Movie Title
+                    Text(
+                      movie.title,
+                      style: const TextStyle(
+                        fontSize: 26, // Tiêu đề lớn hơn
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Container(
-                        height: 200,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.6),
-                              Colors.transparent
-                            ],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (reason != FeaturedReason.none) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.pinkAccent.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(featuredIcon,
+                                    color: Colors.white, size: 14),
+                                const SizedBox(width: 4),
+                                Text(featuredLabel,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.pinkAccent,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.pinkAccent.withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 4,
-                            )
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: const Icon(Icons.play_arrow,
-                            color: Colors.white, size: 40),
+                        ],
                       ),
                     ],
-                  ),
-                )
-              ],
-            ),
+                    const SizedBox(height: 8),
+                    // Rating, Genres, Runtime
+                    Row(
+                      children: [
+                        _buildRatingStars(movie.voteAverage),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            // Thêm năm phát hành
+                            '${movie.releaseDate?.year ?? ''} • ${_getGenreNames(movie)}',
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_formatRuntimeOnly(movie.runtime).isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            _formatRuntimeOnly(movie.runtime),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 14),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Overview Snippet
+                    Text(
+                      movie.overview,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13, height: 1.4),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 20),
+                    // Action Buttons
+                    Row(
+                      children: [
+                        _buildHeroActionButton(Icons.play_arrow, 'Play',
+                            onTap: () => _goToMovieDetail(context, movie)),
+                        const SizedBox(width: 10),
+                        _buildHeroActionButton(Icons.info_outline, 'Info',
+                            onTap: () => _goToMovieDetail(context, movie)),
+                        const SizedBox(width: 10),
+                        _buildHeroActionButton(Icons.share, 'Share',
+                            onTap: () => _shareMovie(context, movie)),
+                        const SizedBox(width: 10),
+                        _buildHeroActionButton(
+                            Icons.delete_outline, 'Remove', // Nút Remove mới
+                            onTap: () =>
+                                _removeMovieFromAllLists(context, movie)),
+                      ], // Thay đổi ở đây
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            movie.title,
-            style: const TextStyle(
-              fontSize: 20,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+        ),
+      ),
+    );
+  }
+
+  // Hàm hiển thị hộp thoại xác nhận xóa (có thể tái sử dụng)
+  Future<void> _showDeleteConfirmationDialog({
+    required Movie movie,
+    required String content,
+    required VoidCallback onConfirm,
+  }) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // Người dùng phải chọn một hành động
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF3A0CA3), // Màu nền cũ
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side:
+              BorderSide(color: Colors.white.withOpacity(0.2)), // Thêm viền mờ
+        ),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 28),
+            SizedBox(width: 12),
+            Text('Confirm Deletion'),
+          ],
+        ),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        content: Text(
+          content,
+          style: TextStyle(color: Colors.white.withOpacity(0.8), height: 1.5),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
           ),
-          const SizedBox(height: 6),
-          Text(
-            _formatGenresAndRuntime(movie),
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: 2,
-            width: 120,
-            decoration: BoxDecoration(
-              color: Colors.pinkAccent,
-              borderRadius: BorderRadius.circular(2),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.delete_forever, size: 18),
+            label: const Text('Confirm'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.pinkAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
             ),
+            onPressed: () {
+              Navigator.of(dialogContext).pop(); // Đóng hộp thoại
+              // HapticFeedback.mediumImpact() is not conditional yet, we can add it to FeedbackService if needed
+              onConfirm(); // Thực hiện hành động xóa, âm thanh sẽ được gọi trong này
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(children: [
+                    const Icon(Icons.check_circle_outline, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text('"${movie.title}" has been removed.',
+                            style: const TextStyle(color: Colors.black))),
+                  ]),
+                  backgroundColor: Colors.white,
+                  behavior: SnackBarBehavior.floating, // Nổi lên trên
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.all(16),
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
+  // Helper function to remove a movie from all lists
+  void _removeMovieFromAllLists(BuildContext context, Movie movie) {
+    FeedbackService.playSound(context);
+    FeedbackService.lightImpact(context);
+    _showDeleteConfirmationDialog(
+        movie: movie,
+        content:
+            'Are you sure you want to remove "${movie.title}" from all your lists (Favorites, Watchlist, Downloads)?',
+        onConfirm: () {
+          SystemSound.play(SystemSoundType.click); // <-- Thêm âm thanh vào đây
+          context.read<FavoritesProvider>().removeFavorite(movie.id);
+          context.read<WatchlistProvider>().removeWatchlist(movie.id);
+          context.read<DownloadsProvider>().removeDownload(movie);
+        });
+  }
+
   // === DOWNLOADS SECTION ===
-  Widget _buildDownloadsSection(BuildContext context, List<Movie> downloads) {
+  Widget _buildDownloadsSection(BuildContext context) {
+    // Không nhận tham số downloads
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -387,11 +712,14 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               ),
               GestureDetector(
                 onTap: () {
+                  FeedbackService.playSound(context);
+                  FeedbackService.lightImpact(context);
                   context.push(
                     '/my-list/see-all',
                     extra: {
                       'title': 'All Downloads',
-                      'movies': downloads,
+                      'movies':
+                          _downloads, // Sử dụng danh sách cục bộ _downloads
                       'listType': MyListType.downloads,
                     },
                   );
@@ -404,23 +732,51 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             ],
           ),
           const SizedBox(height: 12),
-          if (downloads.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'No downloaded movies yet.',
-                  style: TextStyle(color: Colors.white60),
-                ),
-              ),
-            )
-          else
-            Column(
-              children: downloads.map((movie) {
-                return _buildDownloadItem(
-                    context, movie, context.read<DownloadsProvider>());
-              }).toList(),
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              // Hiệu ứng trượt từ phải sang trái
+              final slideAnimation = Tween<Offset>(
+                begin: const Offset(1.0, 0.0),
+                end: Offset.zero,
+              ).animate(animation);
+              return SlideTransition(position: slideAnimation, child: child);
+            },
+            child: _downloads.isEmpty
+                ? _buildEmptyState(
+                    key: const ValueKey('empty_downloads_animated'),
+                    icon: Icons.cloud_off_outlined,
+                    message: 'Movies you download will appear here.',
+                  )
+                : AnimatedList(
+                    // Đóng AnimatedSwitcher ở đây
+                    key: _downloadsListKey, // Gán GlobalKey
+                    shrinkWrap: true, // Quan trọng khi nằm trong ListView
+                    physics:
+                        const NeverScrollableScrollPhysics(), // AnimatedList tự quản lý cuộn
+                    initialItemCount: _downloads.length,
+                    itemBuilder: (context, index, animation) {
+                      // Sử dụng FadeTransition thay vì animation package
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: animation.drive(
+                            Tween<Offset>(
+                              begin: const Offset(0, 0.1),
+                              end: Offset.zero,
+                            ).chain(CurveTween(curve: Curves.easeOut)),
+                          ),
+                          child: _buildDownloadItemWithAnimation(
+                              context,
+                              _downloads[index],
+                              context.read<DownloadsProvider>(),
+                              animation,
+                              index), // Gọi đúng hàm
+                        ),
+                      );
+                    },
+                  ),
+          ), // Đóng AnimatedSwitcher
         ],
       ),
     );
@@ -428,7 +784,18 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   Widget _buildDownloadItem(
       BuildContext context, Movie movie, DownloadsProvider provider) {
-    return Container(
+    // Thêm tham số animation và index
+    return _buildDownloadItemWithAnimation(
+        context, movie, provider, null, null); // Hàm này chỉ là wrapper
+  }
+
+  Widget _buildDownloadItemWithAnimation(BuildContext context, Movie movie,
+      DownloadsProvider provider, Animation<double>? animation, int? index) {
+    // Tối ưu: Tính toán kích thước cache cho ảnh
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int memCacheWidth = (60 * devicePixelRatio).round();
+    final int memCacheHeight = (90 * devicePixelRatio).round();
+    final itemContent = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -440,6 +807,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           child: CachedNetworkImage(
             imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
             width: 60,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
             fit: BoxFit.cover,
           ),
         ),
@@ -455,7 +824,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           children: [
             const SizedBox(height: 4),
             Text(
-              _formatGenresAndRuntime(movie),
+              // Sử dụng kết hợp các hàm mới
+              '${_getGenreNames(movie)} ${_formatRuntimeOnly(movie.runtime).isNotEmpty ? '• ${_formatRuntimeOnly(movie.runtime)}' : ''}',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
             const SizedBox(height: 4),
@@ -478,12 +848,39 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.pinkAccent),
-              onPressed: () => provider.removeDownload(movie),
+              onPressed: () {
+                FeedbackService.playSound(context);
+                FeedbackService.lightImpact(context);
+                // Hiển thị hộp thoại xác nhận trước khi xóa
+                _showDeleteConfirmationDialog(
+                  movie: movie,
+                  content: 'Are you sure you want to remove this download?',
+                  // Khi xác nhận, gọi hàm xóa từ provider
+                  onConfirm: () {
+                    SystemSound.play(
+                        SystemSoundType.click); // <-- Thêm âm thanh vào đây
+                    provider.removeDownload(movie);
+                  },
+                );
+              },
             ),
           ],
         ),
       ),
     );
+
+    return animation != null
+        ? SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0), // Hiệu ứng trượt vào từ trái
+              end: Offset.zero,
+            ).animate(animation),
+            child: FadeTransition(
+              opacity: animation,
+              child: itemContent,
+            ),
+          )
+        : itemContent; // Nếu không có animation (ví dụ: khi gọi từ removeItem builder), chỉ trả về nội dung
   }
 
   // === FAVORITES SECTION (MỚI) ===
@@ -506,6 +903,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               ),
               GestureDetector(
                 onTap: () {
+                  FeedbackService.playSound(context);
+                  FeedbackService.lightImpact(context);
                   context.push(
                     '/my-list/see-all',
                     extra: {
@@ -523,23 +922,28 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             ],
           ),
           const SizedBox(height: 12),
-          if (favorites.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'This list is empty.', // Thông báo chung
-                  style: TextStyle(color: Colors.white60),
-                ),
-              ),
-            )
-          else
-            Column(
-              children: favorites.map((movie) {
-                return _buildFavoriteItem(
-                    context, movie, context.read<FavoritesProvider>());
-              }).toList(),
-            ),
+          AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                final slideAnimation = Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return SlideTransition(position: slideAnimation, child: child);
+              },
+              child: favorites.isEmpty
+                  ? _buildEmptyState(
+                      key: const ValueKey('empty_favorites'),
+                      icon: Icons.favorite_border,
+                      message: 'Your favorite movies will be stored here.',
+                    )
+                  : Column(
+                      key: const ValueKey('filled_favorites'),
+                      children: favorites.map((movie) {
+                        return _buildFavoriteItem(
+                            context, movie, context.read<FavoritesProvider>());
+                      }).toList(),
+                    )),
         ],
       ),
     );
@@ -548,6 +952,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   // Widget cho một mục trong danh sách yêu thích (MỚI)
   Widget _buildFavoriteItem(
       BuildContext context, Movie movie, FavoritesProvider provider) {
+    // Tối ưu: Tính toán kích thước cache cho ảnh
+    // Tối ưu: Tính toán kích thước cache cho ảnh (Đã sửa)
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int memCacheWidth = (60 * devicePixelRatio).round();
+    final int memCacheHeight = (90 * devicePixelRatio).round();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -561,6 +971,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           child: CachedNetworkImage(
             imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
             width: 60,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
             fit: BoxFit.cover,
           ),
         ),
@@ -576,7 +988,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           children: [
             const SizedBox(height: 4),
             Text(
-              _formatGenresAndRuntime(movie),
+              // Sử dụng kết hợp các hàm mới
+              '${_getGenreNames(movie)} ${_formatRuntimeOnly(movie.runtime).isNotEmpty ? '• ${_formatRuntimeOnly(movie.runtime)}' : ''}',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
             const SizedBox(height: 4),
@@ -584,8 +997,22 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           ],
         ),
         trailing: IconButton(
-            icon: const Icon(Icons.favorite, color: Colors.pinkAccent),
-            onPressed: () => provider.toggleFavorite(movie)),
+          icon: const Icon(Icons.favorite, color: Colors.pinkAccent),
+          onPressed: () {
+            FeedbackService.playSound(context);
+            FeedbackService.lightImpact(context);
+            _showDeleteConfirmationDialog(
+              movie: movie,
+              content:
+                  'Are you sure you want to remove "${movie.title}" from your favorites?',
+              onConfirm: () {
+                SystemSound.play(
+                    SystemSoundType.click); // <-- Thêm âm thanh vào đây
+                provider.toggleFavorite(movie);
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -610,6 +1037,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               ),
               GestureDetector(
                 onTap: () {
+                  FeedbackService.playSound(context);
+                  FeedbackService.lightImpact(context);
                   context.push(
                     '/my-list/see-all',
                     extra: {
@@ -627,23 +1056,29 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             ],
           ),
           const SizedBox(height: 12),
-          if (watchlist.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'This list is empty.', // Thông báo chung
-                  style: TextStyle(color: Colors.white60),
-                ),
-              ),
-            )
-          else
-            Column(
-              children: watchlist.map((movie) {
-                return _buildWatchlistItem(
-                    context, movie, context.read<WatchlistProvider>());
-              }).toList(),
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              final slideAnimation = Tween<Offset>(
+                begin: const Offset(1.0, 0.0),
+                end: Offset.zero,
+              ).animate(animation);
+              return SlideTransition(position: slideAnimation, child: child);
+            },
+            child: watchlist.isEmpty
+                ? _buildEmptyState(
+                    key: const ValueKey('empty_watchlist'),
+                    icon: Icons.bookmark_border,
+                    message: 'Add movies to your watchlist to see them here.',
+                  )
+                : Column(
+                    key: const ValueKey('filled_watchlist'),
+                    children: watchlist.map((movie) {
+                      return _buildWatchlistItem(
+                          context, movie, context.read<WatchlistProvider>());
+                    }).toList(),
+                  ),
+          ), // Closes AnimatedSwitcher
         ],
       ),
     );
@@ -651,6 +1086,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   Widget _buildWatchlistItem(
       BuildContext context, Movie movie, WatchlistProvider provider) {
+    // Tối ưu: Tính toán kích thước cache cho ảnh
+    // Tối ưu: Tính toán kích thước cache cho ảnh (Đã sửa)
+    final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    final int memCacheWidth = (60 * devicePixelRatio).round();
+    final int memCacheHeight = (90 * devicePixelRatio).round();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -664,6 +1105,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           child: CachedNetworkImage(
             imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',
             width: 60,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
             fit: BoxFit.cover,
           ),
         ),
@@ -676,57 +1119,130 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(_formatGenresAndRuntime(movie),
+            Text(
+                // Sử dụng kết hợp các hàm mới
+                '${_getGenreNames(movie)} ${_formatRuntimeOnly(movie.runtime).isNotEmpty ? '• ${_formatRuntimeOnly(movie.runtime)}' : ''}',
                 style: const TextStyle(color: Colors.white70, fontSize: 12)),
             const SizedBox(height: 4),
             _buildRatingStars(movie.voteAverage),
           ],
         ),
         trailing: IconButton(
-            icon: const Icon(Icons.bookmark_remove, color: Colors.pinkAccent),
-            onPressed: () => provider.toggleWatchlist(movie)),
+            icon: const Icon(Icons.bookmark_remove,
+                color: Colors.pinkAccent), // Icon xóa
+            onPressed: () {
+              FeedbackService.playSound(context);
+              FeedbackService.lightImpact(context);
+              _showDeleteConfirmationDialog(
+                movie: movie,
+                content:
+                    'Are you sure you want to remove "${movie.title}" from your watchlist?',
+                onConfirm: () {
+                  SystemSound.play(
+                      SystemSoundType.click); // <-- Thêm âm thanh vào đây
+                  provider.toggleWatchlist(movie);
+                }, // toggleWatchlist sẽ xóa nếu đã có
+              );
+            }),
       ),
     );
   }
 
-  // === SEARCH BAR ===
-  Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: TextField(
-        controller: _searchController,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Search your movies...',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-          prefixIcon: const Icon(Icons.search, color: Colors.white70),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.white70),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {
-                      _searchQuery = '';
-                    });
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: const BorderSide(color: Colors.pinkAccent, width: 1.5),
+  // === THANH TÌM KIẾM VÀ BỘ LỌC (MỚI) ===
+  Widget _buildSearchAndFilterBar(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min, // Để Row co lại vừa đủ nội dung
+      children: [
+        Flexible(
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search your movies...',
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+              prefixIcon: const Icon(Icons.search, color: Colors.white70),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.white70),
+                      onPressed: () {
+                        _searchController.clear();
+                        // Listener sẽ tự động gọi setState
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.1),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide:
+                    const BorderSide(color: Colors.pinkAccent, width: 1.5),
+              ),
+            ),
           ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.filter_list, color: Colors.white70),
+            onPressed: () {
+              FeedbackService.playSound(context);
+              FeedbackService.lightImpact(context);
+              _showFilterBottomSheet(context);
+            },
+          ),
+        ),
+      ],
     );
   }
 
-  // === CLEAR FILTERS BUTTON ===
+  void _showFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF2B124C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+            top: Radius.circular(20)), // Đóng RoundedRectangleBorder
+      ),
+      builder: (context) {
+        // Dùng StatefulBuilder để cập nhật UI bên trong bottom sheet
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Filter & Sort',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Divider(height: 20),
+                  // Gọi lại các widget bộ lọc, nhưng truyền setModalState
+                  // để chúng có thể cập nhật UI của bottom sheet.
+                  _buildGenreFilter(setModalState),
+                  const SizedBox(height: 16),
+                  _buildSortOptions(setModalState),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        );
+      }, // Đóng builder
+    );
+  }
+
+  // === NÚT XÓA BỘ LỌC ===
   Widget _buildClearFiltersButton() {
     final bool isFilterActive =
         _searchQuery.isNotEmpty || _selectedGenreId != null;
@@ -739,9 +1255,13 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           ? Align(
               alignment: Alignment.centerRight,
               child: Padding(
-                padding: const EdgeInsets.only(right: 20, top: 8),
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
                 child: TextButton.icon(
-                  onPressed: _clearFilters,
+                  onPressed: () {
+                    FeedbackService.playSound(context);
+                    FeedbackService.lightImpact(context);
+                    _clearFilters();
+                  },
                   icon: const Icon(Icons.clear_all, size: 18),
                   label: const Text('Clear Filters'),
                   style: TextButton.styleFrom(foregroundColor: Colors.white70),
@@ -752,8 +1272,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     );
   }
 
-  // === GENRE FILTER ===
-  Widget _buildGenreFilter() {
+  // === BỘ LỌC THỂ LOẠI (Đã cập nhật) ===
+  Widget _buildGenreFilter(StateSetter setModalState) {
     // Add "All Genres" option at the beginning
     final List<Genre> displayGenres = [
       Genre(id: 0, name: 'All Genres'), // Use 0 or a special ID for "All"
@@ -761,74 +1281,83 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     ];
 
     return Container(
-      height: 40, // Height for the horizontal list of chips
+      height: 45, // Height for the horizontal list of chips
       margin: const EdgeInsets.only(top: 12.0),
-      child: ListView.builder(
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: displayGenres.length,
-        itemBuilder: (context, index) {
-          final genre = displayGenres[index];
-          final bool isSelected = (_selectedGenreId == null && genre.id == 0) ||
-              (_selectedGenreId == genre.id);
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ChoiceChip(
-              label: Text(genre.name),
-              selected: isSelected,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() {
-                    _selectedGenreId = (genre.id == 0) ? null : genre.id;
-                  });
-                }
-              },
-              selectedColor: Colors.pinkAccent,
-              backgroundColor: Colors.white.withOpacity(0.1),
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? Colors.pinkAccent : Colors.transparent,
-                  width: 1.5,
+        child: Row(
+          children: displayGenres.map((genre) {
+            final bool isSelected =
+                (_selectedGenreId == null && genre.id == 0) ||
+                    (_selectedGenreId == genre.id);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ChoiceChip(
+                label: Text(genre.name),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    FeedbackService.playSound(context);
+                    FeedbackService.lightImpact(context);
+                    setModalState(() {
+                      setState(() {
+                        _selectedGenreId = (genre.id == 0) ? null : genre.id;
+                      });
+                    });
+                  }
+                },
+                selectedColor: Colors.pinkAccent,
+                backgroundColor: Colors.white.withOpacity(0.1),
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: isSelected ? Colors.pinkAccent : Colors.transparent,
+                    width: 1.5,
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
-  // === SORT OPTIONS ===
-  Widget _buildSortOptions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      child: Row(
-        children: [
-          const Text("Sort by:", style: TextStyle(color: Colors.white70)),
-          const SizedBox(width: 10),
-          _buildSortChip('Date Added', SortOption.byDateAdded),
-          const SizedBox(width: 10),
-          _buildSortChip('Name (A-Z)', SortOption.byName),
-        ],
-      ),
+  // === TÙY CHỌN SẮP XẾP (Đã cập nhật) ===
+  Widget _buildSortOptions(StateSetter setModalState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Sort by:", style: TextStyle(color: Colors.white70)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _buildSortChip('Date Added', SortOption.byDateAdded, setModalState),
+            const SizedBox(width: 10),
+            _buildSortChip('Name (A-Z)', SortOption.byName, setModalState),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildSortChip(String label, SortOption option) {
+  Widget _buildSortChip(
+      String label, SortOption option, StateSetter setModalState) {
     final bool isSelected = _currentSortOption == option;
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
         if (selected) {
-          setState(() {
-            _currentSortOption = option;
+          FeedbackService.playSound(context);
+          FeedbackService.lightImpact(context);
+          setModalState(() {
+            setState(() => _currentSortOption = option);
           });
         }
       },
@@ -879,21 +1408,51 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     return Row(children: stars);
   }
 
-  // === Helper: genres + runtime
-  String _formatGenresAndRuntime(Movie movie) {
-    String genreName = '';
-    if (movie.genres?.isNotEmpty ?? false) {
-      // Find the actual genre name from the available genres list
-      final firstGenreId = movie.genres!.first.id;
-      final foundGenre = _availableGenres.firstWhere(
-        (g) => g.id == firstGenreId,
-        orElse: () => Genre(id: 0, name: ''), // Fallback an toàn
-      );
-      genreName = foundGenre.name; // Sẽ là '' nếu không tìm thấy
-    }
-    final runtime = movie.runtime != null
-        ? '${movie.runtime! ~/ 60}h ${movie.runtime! % 60}m'
-        : '';
-    return '$genreName ${runtime.isNotEmpty ? '• $runtime' : ''}';
+  // === Helper: Empty State Widget ===
+  Widget _buildEmptyState(
+      {Key? key, required IconData icon, required String message}) {
+    return Center(
+      key: key, // Quan trọng cho AnimatedSwitcher
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: Colors.white54,
+              size: 60,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                FeedbackService.playSound(context);
+                FeedbackService.lightImpact(context);
+                context.go('/home');
+              },
+              icon: const Icon(Icons.add_to_photos_rounded),
+              label: const Text('Find Movies to Add'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.pinkAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ); // Đóng Center
   }
 }

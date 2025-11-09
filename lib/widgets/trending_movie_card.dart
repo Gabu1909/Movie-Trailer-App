@@ -1,11 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Thêm import cho SystemSound
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../api/api_constants.dart';
 import '../models/movie.dart';
 import '../providers/favorites_provider.dart';
 import '../theme/constants.dart';
+import '../screens/feedback_service.dart'; // Import service mới
 
 class TrendingMovieCard extends StatelessWidget {
   final Movie movie;
@@ -32,6 +34,8 @@ class TrendingMovieCard extends StatelessWidget {
       onTap: () {
         context.push('/movie/${movie.id}',
             extra: {'heroTag': 'trending_poster_${movie.id}'});
+        FeedbackService.playSound(context);
+        FeedbackService.lightImpact(context);
       },
       child: AnimatedScale(
         scale: scale,
@@ -77,13 +81,13 @@ class TrendingMovieCard extends StatelessWidget {
                                   : 0.95), // Scale nhẹ khi không ở trung tâm
                             child: CachedNetworkImage(
                               imageUrl:
-                                  '${ApiConstants.imageBaseUrlOriginal}${movie.posterPath}', // ✅ dùng bản full HD
+                                  '${ApiConstants.imageBaseUrlW780}${movie.posterPath}', // TỐI ƯU: Dùng ảnh w780 thay vì original
                               fit: BoxFit.cover,
                               filterQuality:
                                   FilterQuality.high, // ✅ ảnh sắc nét hơn
-                              memCacheWidth:
-                                  700, // ✅ cache đủ lớn (giúp tránh bị resize mờ)
-                              memCacheHeight: 1050,
+                              // Tối ưu: Tính toán kích thước cache hợp lý
+                              memCacheWidth: (400 * (MediaQuery.of(context).devicePixelRatio)).round(),
+                              memCacheHeight: (600 * (MediaQuery.of(context).devicePixelRatio)).round(),
                               fadeInDuration: const Duration(milliseconds: 300),
                               placeholder: (context, url) => const Center(
                                 child: CircularProgressIndicator(
@@ -110,7 +114,10 @@ class TrendingMovieCard extends StatelessWidget {
                     builder: (context, provider, child) {
                       final isFavorite = provider.isFavorite(movie.id);
                       return GestureDetector(
+                        // Haptic feedback and sound are handled by the IconButton in MovieDetailScreen
                         onTap: () {
+                          FeedbackService.playSound(context);
+                          FeedbackService.lightImpact(context);
                           provider.toggleFavorite(movie);
                         },
                         child: Container(

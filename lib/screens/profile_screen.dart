@@ -166,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => context.push('/security')),
           _buildMenuItem(context,
               icon: Icons.notifications_outlined,
-              text: 'Notifications',
+              text: 'Notification',
               onTap: () => context.push('/notifications')),
           _buildMenuItem(context,
               icon: Icons.list_alt_outlined,
@@ -175,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(context,
               icon: Icons.help_outline,
               text: 'Help Center',
-              onTap: () => context.push('/help-center')),
+              onTap: () => context.push('/help_center')),
         ],
       ),
     );

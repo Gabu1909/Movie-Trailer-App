@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/movie.dart';
+import '../models/cast.dart'; // Import Cast model
 import '../screens/favorites_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/main_wrapper.dart';
@@ -58,7 +59,7 @@ class AppRouter {
             builder: (context, state) => const PlaceholderScreen(title: 'Live'),
           ),
 
-          // ========== DETAIL SCREENS (BÂY GIỜ Ở TRONG SHELL - BOTTOM BAR LUÔN HIỆN) ==========
+          // ========== DETAIL SCREENS ==========
           GoRoute(
             path: '/movie/:id',
             builder: (context, state) {
@@ -122,7 +123,7 @@ class AppRouter {
             builder: (context, state) => const NotificationScreen(),
           ),
           GoRoute(
-            path: '/help-center',
+            path: '/help_center',
             builder: (context, state) => const HelpCenterScreen(),
           ),
           GoRoute(

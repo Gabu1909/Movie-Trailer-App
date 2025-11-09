@@ -44,4 +44,7 @@
     </queries>
     <!-- The INTERNET permission is required for development. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Required for local notifications on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

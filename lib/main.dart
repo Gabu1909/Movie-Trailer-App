@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/favorites_provider.dart';
-import 'providers/movie_provider.dart';
-import 'providers/downloads_provider.dart'; // 1. Import DownloadsProvider
-import 'providers/watchlist_provider.dart';
-import 'router/app_router.dart';
-import 'theme/constants.dart'; // Import màu sắc mới
+import 'providers/favorites_provider.dart'; // Import FavoritesProvider
+import 'providers/movie_provider.dart'; // Import MovieProvider
+import 'providers/downloads_provider.dart'; // Import DownloadsProvider
+import 'providers/notification_provider.dart'; // Import NotificationProvider
+import 'providers/watchlist_provider.dart'; // Import WatchlistProvider
+import 'providers/bottom_nav_visibility_provider.dart'; // Import BottomNavVisibilityProvider
+import 'providers/settings_provider.dart'; // Import SettingsProvider
+import 'providers/movie_detail_provider.dart'; // Import MovieDetailProvider
+import 'providers/actor_detail_provider.dart'; // Import ActorDetailProvider
+import 'providers/search_provider.dart'; // Import SearchProvider
+import 'router/app_router.dart'; // Import AppRouter
+import 'services/local_notification_service.dart'; // Import LocalNotificationService
+import 'theme/constants.dart'; // Import theme constants
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Đảm bảo Flutter binding được khởi tạo
+  await LocalNotificationService.initialize(); // Khởi tạo dịch vụ thông báo
+  runApp(const MyApp()); // Chạy ứng dụng
 }
 
 class MyApp extends StatelessWidget {
@@ -18,11 +28,24 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Các provider không phụ thuộc
         ChangeNotifierProvider(create: (_) => MovieProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => WatchlistProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => BottomNavVisibilityProvider()),
+        ChangeNotifierProvider(create: (_) => ActorDetailProvider()),
+        ChangeNotifierProvider(create: (_) => MovieDetailProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(
-            create: (_) => DownloadsProvider()), // 2. Thêm vào danh sách
+            create: (_) => SearchProvider()), // Thêm SearchProvider
+        // DownloadsProvider phụ thuộc vào NotificationProvider
+        ChangeNotifierProxyProvider<NotificationProvider, DownloadsProvider>(
+          create: (context) => DownloadsProvider(
+              notificationProvider: context.read<NotificationProvider>()),
+          update: (context, notificationProvider, previous) =>
+              previous!..updateDependencies(notificationProvider),
+        ),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

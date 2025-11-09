@@ -36,13 +36,16 @@ class FavoritesProvider with ChangeNotifier {
   Future<void> toggleFavorite(Movie movie) async {
     final isCurrentlyFavorite = isFavorite(movie.id);
     if (isCurrentlyFavorite) {
-      // The movie object from the UI might have isFavorite=false.
-      // We use copyWith to ensure the DB sees the correct state to toggle from.
-      await _dbHelper.removeFavorite(movie.copyWith(isFavorite: true));
+      await _dbHelper.removeFavorite(movie.id);
     } else {
       await _dbHelper.addFavorite(movie);
     }
     // Reload from the database to ensure consistency.
+    await loadFavorites();
+  }
+
+  Future<void> removeFavorite(int movieId) async {
+    await _dbHelper.removeFavorite(movieId);
     await loadFavorites();
   }
 }

@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../models/notification_item.dart';
 import '../models/movie.dart';
 
 class DatabaseHelper {
@@ -17,9 +18,9 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    // Tăng version lên 2 để kích hoạt onUpgrade nếu cần
+    // Tăng version lên 9 để kích hoạt onUpgrade
     return await openDatabase(path,
-        version: 5, onCreate: _createDB, onUpgrade: _onUpgrade);
+        version: 9, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future _createDB(Database db, int version) async {
@@ -31,11 +32,14 @@ class DatabaseHelper {
         overview TEXT NOT NULL,
         posterPath TEXT,
         voteAverage REAL NOT NULL,
+        voteCount INTEGER NOT NULL DEFAULT 0,
         isFavorite INTEGER NOT NULL DEFAULT 0,
-        isInWatchlist INTEGER NOT NULL DEFAULT 0, -- Thêm cột mới
-        mediaType TEXT NOT NULL DEFAULT 'movie', -- Thêm cột mediaType
+        isInWatchlist INTEGER NOT NULL DEFAULT 0,
+        mediaType TEXT NOT NULL DEFAULT 'movie',
         genres TEXT,
-        runtime INTEGER -- Store runtime in minutes
+        runtime INTEGER,
+        releaseDate TEXT,
+        dateAdded TEXT
       )
     ''');
 
@@ -46,12 +50,69 @@ class DatabaseHelper {
         filePath TEXT NOT NULL
       )
     ''');
+
+    // Bảng mới để lưu thông báo
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        isRead INTEGER NOT NULL DEFAULT 0,
+        imageUrl TEXT,
+        route TEXT,
+        routeArgs TEXT
+      )
+    ''');
   }
 
   // Xử lý nâng cấp DB nếu cấu trúc thay đổi
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
     // Khi nâng cấp, chỉ cần đảm bảo các bảng được tạo đúng.
-    await _createDB(db, newVersion);
+    if (oldVersion < 9) {
+      // Lấy thông tin của bảng 'movies' để kiểm tra các cột hiện có.
+      var tableInfo = await db.rawQuery("PRAGMA table_info(movies)");
+
+      // Kiểm tra và thêm từng cột nếu nó chưa tồn tại.
+      if (!tableInfo.any((col) => col['name'] == 'voteCount')) {
+        await db.execute(
+            "ALTER TABLE movies ADD COLUMN voteCount INTEGER NOT NULL DEFAULT 0");
+      }
+      if (!tableInfo.any((col) => col['name'] == 'mediaType')) {
+        await db.execute(
+            "ALTER TABLE movies ADD COLUMN mediaType TEXT NOT NULL DEFAULT 'movie'");
+      }
+      if (!tableInfo.any((col) => col['name'] == 'genres')) {
+        await db.execute("ALTER TABLE movies ADD COLUMN genres TEXT");
+      }
+      if (!tableInfo.any((col) => col['name'] == 'isInWatchlist')) {
+        await db.execute(
+            "ALTER TABLE movies ADD COLUMN isInWatchlist INTEGER NOT NULL DEFAULT 0");
+      }
+      if (!tableInfo.any((col) => col['name'] == 'runtime')) {
+        await db.execute("ALTER TABLE movies ADD COLUMN runtime INTEGER");
+      }
+      if (!tableInfo.any((col) => col['name'] == 'releaseDate')) {
+        await db.execute("ALTER TABLE movies ADD COLUMN releaseDate TEXT");
+      }
+      if (!tableInfo.any((col) => col['name'] == 'dateAdded')) {
+        await db.execute("ALTER TABLE movies ADD COLUMN dateAdded TEXT");
+      }
+
+      // Thêm bảng notifications nếu chưa có
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          isRead INTEGER NOT NULL DEFAULT 0,
+          imageUrl TEXT,
+          route TEXT,
+          routeArgs TEXT
+        )
+      ''');
+    }
   }
 
   // --- Movie Data (chung cho cả favorites và downloads) ---
@@ -61,12 +122,12 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-
   Future<void> addFavorite(Movie movie) async {
     final db = await instance.database;
-    final movieWithFavorite = movie.copyWith(isFavorite: true);
-    await db.insert('movies', movieWithFavorite.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await saveMovie(movie); // Đảm bảo phim được lưu
+    await db.update('movies',
+        {'isFavorite': 1, 'dateAdded': DateTime.now().toIso8601String()},
+        where: 'id = ?', whereArgs: [movie.id]);
   }
 
   Future<List<Movie>> getFavorites() async {
@@ -75,11 +136,10 @@ class DatabaseHelper {
     return result.map((json) => Movie.fromMap(json)).toList();
   }
 
-  Future<void> removeFavorite(Movie movie) async {
+  Future<void> removeFavorite(int id) async {
     final db = await instance.database;
-    final movieWithFavoriteRemoved = movie.copyWith(isFavorite: false);
-    await db.insert('movies', movieWithFavoriteRemoved.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.update('movies', {'isFavorite': 0},
+        where: 'id = ?', whereArgs: [id]);
   }
 
   Future<bool> isFavorite(int id) async {
@@ -93,10 +153,16 @@ class DatabaseHelper {
   Future<void> toggleWatchlist(Movie movie) async {
     final db = await instance.database;
     final isCurrentlyInWatchlist = await isInWatchlist(movie.id);
-    final movieWithWatchlist =
-        movie.copyWith(isInWatchlist: !isCurrentlyInWatchlist);
-    await db.insert('movies', movieWithWatchlist.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await saveMovie(movie); // Đảm bảo phim được lưu
+    await db.update(
+      'movies',
+      {
+        'isInWatchlist': isCurrentlyInWatchlist ? 0 : 1,
+        'dateAdded': DateTime.now().toIso8601String()
+      },
+      where: 'id = ?',
+      whereArgs: [movie.id],
+    );
   }
 
   Future<List<Movie>> getWatchlist() async {
@@ -110,6 +176,12 @@ class DatabaseHelper {
     final result = await db.query('movies',
         where: 'id = ? AND isInWatchlist = 1', whereArgs: [id]);
     return result.isNotEmpty;
+  }
+
+  Future<void> removeWatchlist(int id) async {
+    final db = await instance.database;
+    await db.update('movies', {'isInWatchlist': 0},
+        where: 'id = ?', whereArgs: [id]);
   }
 
   // --- Downloads ---
@@ -140,6 +212,18 @@ class DatabaseHelper {
     return result.map((json) => Movie.fromMap(json)).toList();
   }
 
+  // Lấy thông tin chi tiết các phim đã tải và đường dẫn file trong một lần truy vấn
+  Future<List<Map<String, dynamic>>> getDownloadedMoviesWithPaths() async {
+    final db = await database;
+    // Sử dụng INNER JOIN để kết hợp bảng 'movies' và 'downloads'
+    final result = await db.rawQuery('''
+      SELECT m.*, d.filePath
+      FROM movies m
+      INNER JOIN downloads d ON m.id = d.id
+    ''');
+    return result;
+  }
+
   /// Fetches a single movie from the DB to check its status,
   /// then returns a new Movie object with the combined data.
   Future<Movie> getMovieWithLocalStatus(Movie movieFromApi) async {
@@ -155,5 +239,39 @@ class DatabaseHelper {
       );
     }
     return movieFromApi; // Return the API movie if not in DB
+  }
+
+  // --- Notifications ---
+  Future<void> addNotification(NotificationItem notification) async {
+    final db = await instance.database;
+    await db.insert('notifications', notification.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<NotificationItem>> getNotifications() async {
+    final db = await instance.database;
+    final result = await db.query('notifications', orderBy: 'timestamp DESC');
+    return result.map((json) => NotificationItem.fromMap(json)).toList();
+  }
+
+  Future<void> markNotificationAsRead(String id) async {
+    final db = await instance.database;
+    await db.update('notifications', {'isRead': 1},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    final db = await instance.database;
+    await db.update('notifications', {'isRead': 1}, where: 'isRead = 0');
+  }
+
+  Future<void> deleteNotification(String id) async {
+    final db = await instance.database;
+    await db.delete('notifications', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteAllNotifications() async {
+    final db = await instance.database;
+    await db.delete('notifications');
   }
 }

@@ -1,16 +1,16 @@
 import 'dart:ui';
-import 'dart:async';
+import 'dart:async'; // Import để sử dụng Timer
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/movie_provider.dart';
-import '../widgets/trending_movie_card.dart';
-import '../widgets/custom_app_bar.dart';
-import '../widgets/trending_movie_card_placeholder.dart';
-import '../theme/constants.dart';
-import '../api/api_service.dart';
-import '../models/genre.dart';
 import '../widgets/movie_list.dart';
+import '../widgets/trending_movie_card.dart'; // Import widget mới
+import '../widgets/trending_movie_card_placeholder.dart'; // Import placeholder
+import '../widgets/custom_app_bar.dart'; // Import CustomAppBar
+import '../theme/constants.dart';
+import '../models/genre.dart';
+import 'see_all_screen.dart'; // Import SeeAllScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,26 +21,31 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  PageController? _pageController;
-  int _currentPage = 10000;
-  int _actualMovieIndex = 0;
-  Timer? _autoSlideTimer;
+  PageController? _pageController; // Chuyển thành biến có thể null
+  int _currentPage = 10000; // Trang hiện tại của PageView (trong dải vô hạn)
+  int _actualMovieIndex = 0; // Chỉ số thực của phim trong danh sách
+  Timer? _autoSlideTimer; // Khai báo biến timer
 
+  // Key để điều khiển drawer
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Biến cho hover effect trên genre chips
   int? _hoveredGenreId;
 
+  // Các biến cho hiệu ứng nền mới
   late AnimationController _bgController;
   late Animation<Alignment> _beginAlignmentAnimation;
   late Animation<Alignment> _endAlignmentAnimation;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
     _bgController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 15),
+      duration: const Duration(seconds: 15), // Tăng thời gian để chậm hơn
     )..repeat(reverse: true);
 
+    // Tạo hiệu ứng chuyển động cho điểm bắt đầu và kết thúc của gradient
     _beginAlignmentAnimation =
         AlignmentTween(begin: Alignment.topLeft, end: Alignment.topRight)
             .animate(_bgController);
@@ -48,11 +53,14 @@ class _HomeScreenState extends State<HomeScreen>
         AlignmentTween(begin: Alignment.bottomRight, end: Alignment.bottomLeft)
             .animate(_bgController);
 
+    // Khởi tạo controller và bắt đầu timer
     _initializePageController();
     _startAutoSlideTimer();
   }
 
+  // Hàm để khởi tạo hoặc khởi tạo lại PageController
   void _initializePageController() {
+    // Hủy controller cũ nếu có
     _pageController?.dispose();
     _pageController = PageController(
       viewportFraction: 0.65,
@@ -76,7 +84,9 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
+  // Hàm để bắt đầu timer
   void _startAutoSlideTimer() {
+    // Hủy timer cũ nếu có để tránh chạy nhiều timer cùng lúc
     _autoSlideTimer?.cancel();
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (_pageController?.hasClients ?? false) {
@@ -85,12 +95,13 @@ class _HomeScreenState extends State<HomeScreen>
         if (movieProvider.trendingMovies.isEmpty) return;
         _pageController!.nextPage(
           duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
+          curve: Curves.easeOutCubic, // Thay đổi hiệu ứng chuyển động
         );
       }
     });
   }
 
+  // Hàm để dừng timer
   void _stopAutoSlideTimer() {
     _autoSlideTimer?.cancel();
   }
@@ -98,8 +109,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _bgController.dispose();
-    _pageController?.dispose();
-    _autoSlideTimer?.cancel();
+    _pageController?.dispose(); // Hủy controller nếu nó tồn tại
+    _autoSlideTimer?.cancel(); // Hủy timer khi widget bị dispose
     super.dispose();
   }
 
@@ -110,6 +121,7 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (context, child) {
         return Scaffold(
           key: _scaffoldKey,
+          drawer: _buildDrawer(context),
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -124,7 +136,6 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             child: child,
           ),
-          drawer: _buildDrawer(context),
         );
       },
       child: Consumer<MovieProvider>(
@@ -160,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // Widget cho Drawer menu
   Widget _buildDrawer(BuildContext context) {
     final genres = context.read<MovieProvider>().genres;
     final List<String> countries = [
@@ -190,24 +202,48 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
 
-          // Feature Film
+          // Feature Film (Phim Lẻ - chỉ movies, không có TV shows)
           ListTile(
             leading: const Icon(Icons.movie_filter, color: Colors.white70),
-            title: const Text('Feature film',
+            title: const Text('Feature Films',
                 style: TextStyle(color: Colors.white)),
             onTap: () async {
               final provider = context.read<MovieProvider>();
               provider.clearDrawerGenres();
 
-              context.pop();
-              context.push('/see-all', extra: {
-                'title': 'Feature films',
-                'movies': provider.popularMovies
-              });
-            },
-          ),
+              // Close drawer
+              Navigator.of(context).pop();
 
-          // TV Shows
+              // Đợi drawer đóng xong
+              await Future.delayed(const Duration(milliseconds: 300));
+
+              if (!context.mounted) return;
+
+              // Đợi initialization complete nếu chưa xong
+              await provider.initializationComplete;
+
+              if (!context.mounted) return;
+
+              // popularMovies đã chỉ chứa movies (từ /movie/popular endpoint)
+              final movies = provider.popularMovies;
+              print(
+                  'DEBUG: Feature Films - got ${movies.length} movies (movies only, no TV)');
+
+              if (movies.isEmpty) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No movies found')),
+                  );
+                }
+                return;
+              }
+
+              if (context.mounted) {
+                context.push('/see-all',
+                    extra: {'title': 'Feature Films', 'movies': movies});
+              }
+            },
+          ), // TV Shows
           ListTile(
             leading: const Icon(Icons.tv, color: Colors.white70),
             title:
@@ -216,15 +252,56 @@ class _HomeScreenState extends State<HomeScreen>
               final provider = context.read<MovieProvider>();
               provider.clearDrawerGenres();
 
-              final tvShows = await provider.getPopularTVShows();
+              // Close drawer
+              Navigator.of(context).pop();
+
+              // Đợi drawer đóng xong
+              await Future.delayed(const Duration(milliseconds: 300));
 
               if (!context.mounted) return;
-              context.pop();
-              context.push('/see-all',
-                  extra: {'title': 'TV Shows', 'movies': tvShows});
+
+              // Show loading indicator
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) => const Center(
+                  child: CircularProgressIndicator(color: Colors.pinkAccent),
+                ),
+              );
+
+              try {
+                print('DEBUG: Fetching TV shows...');
+                final tvShows = await provider.getPopularTVShows();
+                print('DEBUG: Got ${tvShows.length} TV shows');
+
+                if (!context.mounted) return;
+
+                // Close loading với rootNavigator
+                Navigator.of(context, rootNavigator: true).pop();
+
+                if (tvShows.isEmpty) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No TV shows found')),
+                    );
+                  }
+                  return;
+                }
+
+                if (context.mounted) {
+                  context.push('/see-all',
+                      extra: {'title': 'TV Shows', 'movies': tvShows});
+                }
+              } catch (e) {
+                print('ERROR fetching TV shows: $e');
+                if (!context.mounted) return;
+                Navigator.of(context, rootNavigator: true).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error loading TV shows: $e')),
+                );
+              }
             },
           ),
-
           const Divider(color: Colors.white24),
 
           // Genres Section
@@ -307,14 +384,70 @@ class _HomeScreenState extends State<HomeScreen>
                   duration: const Duration(milliseconds: 200),
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      final movies =
-                          await provider.getMoviesForSelectedGenres();
-                      final title = provider.getSelectedGenresText();
+                      print('🎯 Apply Filters button pressed');
 
-                      if (!context.mounted) return;
-                      context.pop();
-                      context.push('/see-all',
-                          extra: {'title': title, 'movies': movies});
+                      final movieProvider =
+                          Provider.of<MovieProvider>(context, listen: false);
+                      final navigator =
+                          Navigator.of(context, rootNavigator: true);
+
+                      // Close drawer
+                      Navigator.of(context).pop();
+                      print('✅ Drawer closed');
+
+                      // ĐỢI drawer đóng hoàn toàn
+                      await Future.delayed(const Duration(milliseconds: 300));
+
+                      print('🔍 Starting to fetch movies...');
+                      print(
+                          '📊 Selected genres: ${movieProvider.selectedDrawerGenreIds}');
+                      print(
+                          '🌍 Selected countries: ${movieProvider.selectedCountries}');
+
+                      try {
+                        // Fetch movies
+                        final movies = await movieProvider.getMoviesByFilter();
+                        final title = movieProvider.getSelectedGenresText();
+
+                        print('✅ Fetched ${movies.length} movies');
+                        print('📝 Title: $title');
+
+                        if (movies.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'No movies found.\nTry different filters.'),
+                              backgroundColor: Colors.orange,
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Navigate NGAY - dùng navigator đã lưu từ đầu
+                        print(
+                            '🚀 Navigating to /see-all with ${movies.length} movies');
+                        print('🎬 First movie: ${movies.first.title}');
+
+                        navigator.push(
+                          MaterialPageRoute(
+                            builder: (context) => SeeAllScreen(
+                              title: title,
+                              movies: movies,
+                            ),
+                          ),
+                        );
+
+                        print('✅ Navigation completed');
+                      } catch (e) {
+                        print('❌ ERROR applying filters: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.filter_list),
                     label: const Text('Apply Filters'),
@@ -432,10 +565,12 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // Widget cho toàn bộ phần "Trending" (Carousel + Tabs)
   Widget _buildTrendingSection(BuildContext context, MovieProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Tiêu đề "Lets Explore" và "Trending"
         Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0),
           child: Column(
@@ -467,7 +602,7 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                             const SizedBox(width: 8),
                             const Icon(
-                              Icons.trending_up_rounded,
+                              Icons.trending_up_rounded, // Icon giống mũi tên
                               color: kGreyColor,
                               size: 20,
                             )
@@ -477,13 +612,11 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   GestureDetector(
-                    onTap: () async {
-                      final movies = provider.trendingMovies;
-                      final title = 'Trending';
-
+                    onTap: () {
                       context.push('/see-all', extra: {
-                        'title': title,
-                        'movies': movies,
+                        'title': 'Trending',
+                        'movies': provider
+                            .trendingMovies // Dùng danh sách trending hiện tại
                       });
                     },
                     child: Text(
@@ -496,32 +629,50 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
         ),
+
+        // Các tab thể loại (Genre)
         _buildGenreTabs(context, provider.genres),
+
+        // Carousel (PageView) + overlay indicator
         SizedBox(
           height: 380,
           child: Stack(
             alignment: Alignment.center,
             children: [
               AnimatedSwitcher(
+                // Nâng cấp: Sử dụng cross-fade để chuyển đổi mượt mà hơn
+                // giữa shimmer và danh sách phim.
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
                 duration: const Duration(milliseconds: 500),
                 child: provider.isTrendingLoading
                     ? PageView.builder(
                         key: const ValueKey('shimmer_loader'),
+                        // SỬA LỖI: Tạo một PageController riêng cho shimmer.
+                        // Không dùng chung _pageController của state.
                         controller: PageController(viewportFraction: 0.65),
-                        itemCount: 5,
+                        itemCount: 5, // Hiển thị 5 placeholder
                         itemBuilder: (context, index) {
+                          // Áp dụng hiệu ứng scale và opacity giống như card thật
+                          // để giao diện chờ trông nhất quán.
+                          // Ở đây, chúng ta giả định chỉ có item giữa là "active".
                           final isCenter = index == 1;
                           return AnimatedScale(
                             scale: isCenter ? 1.0 : 0.8,
                             duration: const Duration(milliseconds: 400),
                             child: const AnimatedOpacity(
-                                opacity: 1.0,
+                                opacity: 1.0, // Giữ opacity để thấy shimmer
                                 duration: Duration(milliseconds: 400),
                                 child: TrendingMovieCardPlaceholder()),
                           );
                         })
                     : NotificationListener<ScrollNotification>(
-                        key: ValueKey(provider.selectedGenreIndex),
+                        key: ValueKey(provider
+                            .selectedGenreIndex), // Key để nhận diện sự thay đổi danh sách
                         onNotification: (notification) {
                           if (notification is UserScrollNotification) {
                             _stopAutoSlideTimer();
@@ -531,7 +682,8 @@ class _HomeScreenState extends State<HomeScreen>
                           return true;
                         },
                         child: PageView.builder(
-                          controller: _pageController!,
+                          controller:
+                              _pageController!, // Sử dụng controller đã được khởi tạo
                           itemCount:
                               provider.trendingMovies.isEmpty ? 0 : 1000000,
                           itemBuilder: (context, index) {
@@ -561,6 +713,8 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
               ),
+
+              // Page indicator overlay
               Positioned(
                 bottom: 42,
                 left: 0,
@@ -572,7 +726,7 @@ class _HomeScreenState extends State<HomeScreen>
                     child: _buildWormIndicator(
                       itemCount: provider.trendingMovies.length.clamp(0, 5),
                       activeIndex: _actualMovieIndex % 5,
-                    ),
+                    ), // Đã sửa lỗi cú pháp ở đây
                   ),
                 ),
               ),
@@ -583,10 +737,12 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // Widget cho các tab thể loại
   Widget _buildGenreTabs(BuildContext context, List<Genre> genres) {
+    // Thêm "Popular" vào đầu danh sách
     List<dynamic> displayGenres = [
-      Genre(id: 0, name: 'Popular'),
-      ...genres.take(4)
+      Genre(id: 0, name: 'Popular'), // Dùng class Genre cho đồng nhất
+      ...genres.take(4) // Lấy 4 thể loại đầu tiên từ API
     ];
 
     return Container(
@@ -597,7 +753,8 @@ class _HomeScreenState extends State<HomeScreen>
         padding: const EdgeInsets.only(left: 16),
         itemCount: displayGenres.length,
         itemBuilder: (context, index) {
-          final genre = displayGenres[index];
+          final genre =
+              displayGenres[index]; // genre có thể là Genre hoặc String
           bool isSelected =
               context.watch<MovieProvider>().selectedGenreIndex == index;
 
@@ -608,12 +765,17 @@ class _HomeScreenState extends State<HomeScreen>
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {
+                  // Reset carousel về trang đầu tiên một cách trực quan
                   setState(() {
-                    _actualMovieIndex = 0;
-                    _currentPage = 10000;
+                    _actualMovieIndex = 0; // Reset chỉ số phim
+                    _currentPage = 10000; // Reset trang của PageView
                   });
+                  // Khởi tạo lại controller để reset hoàn toàn trạng thái của nó
                   _initializePageController();
-                  context.read<MovieProvider>().selectGenre(index, genre.id);
+                  // Gọi provider để cập nhật trạng thái và fetch dữ liệu mới
+                  Provider.of<MovieProvider>(context, listen: false)
+                      .selectGenre(index, genre.id);
+                  // Khởi động lại timer
                   _startAutoSlideTimer();
                 }
               },
@@ -630,16 +792,18 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // Widget cho hiệu ứng "Worm" (con sâu)
   Widget _buildWormIndicator(
       {required int itemCount, required int activeIndex}) {
     if (itemCount == 0) return const SizedBox.shrink();
 
     const double dotSize = 8.0;
-    const double dotSpacing = 12.0;
+    const double dotSpacing = 12.0; // Khoảng cách giữa các chấm
 
     return Stack(
       alignment: Alignment.centerLeft,
       children: [
+        // Lớp nền: các chấm không hoạt động
         Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(itemCount, (index) {
@@ -655,6 +819,7 @@ class _HomeScreenState extends State<HomeScreen>
             );
           }),
         ),
+        // Lớp trên: "con sâu" di chuyển
         AnimatedContainer(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOut,
