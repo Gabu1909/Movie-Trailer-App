@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../theme/constants.dart';
-import '../providers/bottom_nav_visibility_provider.dart';
+import '../../theme/constants.dart';
+import '../../providers/bottom_nav_visibility_provider.dart';
 
 class MainWrapper extends StatelessWidget {
   final Widget child;

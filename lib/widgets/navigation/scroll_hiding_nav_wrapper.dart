@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
-import '../providers/bottom_nav_visibility_provider.dart';
+import '../../providers/bottom_nav_visibility_provider.dart';
 
 /// Một widget bọc (wrapper) để tự động ẩn/hiện BottomNavigationBar
 /// khi người dùng cuộn nội dung bên trong nó.

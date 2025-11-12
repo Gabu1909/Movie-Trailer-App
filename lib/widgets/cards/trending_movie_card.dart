@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Thêm import cho SystemSound
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../api/api_constants.dart';
-import '../models/movie.dart';
-import '../providers/favorites_provider.dart';
-import '../theme/constants.dart';
-import '../screens/feedback_service.dart'; // Import service mới
+import '../../api/api_constants.dart';
+import '../../models/movie.dart';
+import '../../providers/favorites_provider.dart';
+import '../../theme/constants.dart';
+import '../../services/feedback_service.dart'; // Import service mới
 
 class TrendingMovieCard extends StatelessWidget {
   final Movie movie;

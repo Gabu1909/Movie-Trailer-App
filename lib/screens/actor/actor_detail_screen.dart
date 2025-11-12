@@ -4,11 +4,11 @@ import 'package:shimmer/shimmer.dart'; // Thêm import shimmer
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../api/api_constants.dart';
-import '../models/actor_detail.dart';
-import '../models/cast.dart'; // Import Cast model
-import '../providers/actor_detail_provider.dart';
-import '../widgets/related_movies_list.dart';
+import '../../api/api_constants.dart';
+import '../../models/actor_detail.dart';
+import '../../models/cast.dart'; // Import Cast model
+import '../../providers/actor_detail_provider.dart';
+import '../../widgets/lists/related_movies_list.dart';
 
 class ActorDetailScreen extends StatefulWidget {
   final int actorId;

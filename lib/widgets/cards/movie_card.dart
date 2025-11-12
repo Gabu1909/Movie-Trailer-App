@@ -3,9 +3,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:go_router/go_router.dart';
-import '../api/api_constants.dart';
-import '../models/movie.dart';
-import '../screens/feedback_service.dart';
+import '../../api/api_constants.dart';
+import '../../models/movie.dart';
+import '../../services/feedback_service.dart';
 import 'package:intl/intl.dart';
 
 class MovieCard extends StatefulWidget {

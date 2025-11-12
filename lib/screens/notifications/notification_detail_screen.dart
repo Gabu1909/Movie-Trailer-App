@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
-import '../models/notification_item.dart';
-import 'feedback_service.dart';
+import '../../models/notification_item.dart';
+import '../../services/feedback_service.dart';
 
 class NotificationDetailScreen extends StatelessWidget {
   final NotificationItem notification;

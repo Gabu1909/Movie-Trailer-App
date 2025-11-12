@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../models/movie.dart';
-import 'movie_card.dart'; // Import widget thẻ phim mới
+import '../../models/movie.dart';
+import '../cards/movie_card.dart'; // Import widget thẻ phim mới
 
 class MovieList extends StatefulWidget {
   final String title;

@@ -1,10 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../api/api_constants.dart';
-import '../models/movie.dart';
-import '../models/cast.dart'; // Thêm import này
-import '../widgets/movie_card.dart';
+import '../../api/api_constants.dart';
+import '../../models/movie.dart';
+import '../../models/cast.dart'; // Thêm import này
+import '../../widgets/cards/movie_card.dart';
 
 class SeeAllScreen extends StatelessWidget {
   final String title;

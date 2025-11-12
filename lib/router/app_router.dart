@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/movie.dart';
-import '../models/cast.dart'; // Import Cast model
-import '../screens/favorites_screen.dart';
-import '../screens/home_screen.dart';
-import '../screens/main_wrapper.dart';
-import '../screens/movie_detail_screen.dart';
-import '../screens/search_screen.dart';
-import '../screens/see_all_screen.dart';
-import '../screens/my_list_see_all_screen.dart';
-import '../screens/local_video_player_screen.dart';
-import '../screens/actor_detail_screen.dart';
-import '../screens/profile_screen.dart';
-import '../screens/edit_profile_screen.dart';
-import '../screens/notification_screen.dart';
-import '../screens/placeholder_screen.dart';
-import '../screens/help_center_screen.dart';
-import '../screens/security_screen.dart';
+import '../models/cast.dart';
+import '../screens/favorites/favorites_screen.dart';
+import '../screens/home/home_screen.dart';
+import '../screens/shared/main_wrapper.dart';
+import '../screens/movie/movie_detail_screen.dart';
+import '../screens/search/search_screen.dart';
+import '../screens/home/see_all_screen.dart';
+import '../screens/favorites/my_list_see_all_screen.dart';
+import '../screens/player/local_video_player_screen.dart';
+import '../screens/actor/actor_detail_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/profile/edit_profile_screen.dart';
+import '../screens/notifications/notification_screen.dart';
+import '../screens/shared/placeholder_screen.dart';
+import '../screens/profile/help_center_screen.dart';
+import '../screens/profile/security_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();

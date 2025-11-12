@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../models/movie.dart';
-import '../providers/downloads_provider.dart';
-import '../providers/favorites_provider.dart';
-import '../providers/watchlist_provider.dart';
+import '../../models/movie.dart';
+import '../../providers/downloads_provider.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/watchlist_provider.dart';
 import 'package:flutter/services.dart'; // For SystemSound
-import '../widgets/movie_card.dart';
-import 'feedback_service.dart'; // Import service mới
+import '../../widgets/cards/movie_card.dart';
+import '../../services/feedback_service.dart'; // Import service mới
 
 enum MyListType { downloads, favorites, watchlist }
 

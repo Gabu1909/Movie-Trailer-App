@@ -6,15 +6,15 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-import '../api/api_constants.dart';
-import '../models/movie.dart';
-import '../providers/movie_detail_provider.dart';
-import '../providers/favorites_provider.dart';
-import '../providers/downloads_provider.dart';
-import '../providers/watchlist_provider.dart';
-import '../providers/settings_provider.dart';
-import '../widgets/related_movies_list.dart';
-import 'feedback_service.dart';
+import '../../api/api_constants.dart';
+import '../../models/movie.dart';
+import '../../providers/movie_detail_provider.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/downloads_provider.dart';
+import '../../providers/watchlist_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../widgets/lists/related_movies_list.dart';
+import '../../services/feedback_service.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final int movieId;

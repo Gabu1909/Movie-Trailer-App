@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../theme/constants.dart';
+import '../../theme/constants.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onMenuPressed;

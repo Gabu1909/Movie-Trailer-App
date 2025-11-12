@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart'; // Import provider
-import '../providers/movie_provider.dart'; // Import MovieProvider
+import '../../providers/movie_provider.dart'; // Import MovieProvider
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

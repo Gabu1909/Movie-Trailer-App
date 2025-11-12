@@ -1,11 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../models/movie.dart';
-import 'movie_card.dart';
-import '../screens/feedback_service.dart';
-import '../models/cast.dart'; // Import Cast model
-import '../api/api_constants.dart'; // Import ApiConstants
+import '../../models/movie.dart';
+import '../cards/movie_card.dart';
+import '../../services/feedback_service.dart';
+import '../../models/cast.dart'; // Import Cast model
+import '../../api/api_constants.dart'; // Import ApiConstants
 
 class RelatedMoviesList extends StatefulWidget {
   final String title;

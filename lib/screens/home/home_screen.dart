@@ -3,13 +3,13 @@ import 'dart:async'; // Import để sử dụng Timer
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/movie_provider.dart';
-import '../widgets/movie_list.dart';
-import '../widgets/trending_movie_card.dart'; // Import widget mới
-import '../widgets/trending_movie_card_placeholder.dart'; // Import placeholder
-import '../widgets/custom_app_bar.dart'; // Import CustomAppBar
-import '../theme/constants.dart';
-import '../models/genre.dart';
+import '../../providers/movie_provider.dart';
+import '../../widgets/lists/movie_list.dart';
+import '../../widgets/cards/trending_movie_card.dart'; // Import widget mới
+import '../../widgets/cards/trending_movie_card_placeholder.dart'; // Import placeholder
+import '../../widgets/navigation/custom_app_bar.dart'; // Import CustomAppBar
+import '../../theme/constants.dart';
+import '../../models/genre.dart';
 import 'see_all_screen.dart'; // Import SeeAllScreen
 
 class HomeScreen extends StatefulWidget {

@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
-import '../api/api_constants.dart';
-import '../models/cast.dart';
-import '../models/movie.dart';
-import '../providers/search_provider.dart'; // Import provider mới
-import 'feedback_service.dart';
+import '../../api/api_constants.dart';
+import '../../models/cast.dart';
+import '../../models/movie.dart';
+import '../../providers/search_provider.dart'; // Import provider mới
+import '../../services/feedback_service.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});

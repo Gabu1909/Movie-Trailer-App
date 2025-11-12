@@ -7,17 +7,17 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart'; // Thêm import để sử dụng SystemSound
 import 'package:intl/intl.dart'; // Import for DateFormat
 // import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Tạm comment
-import '../api/api_constants.dart';
-import '../providers/movie_provider.dart'; // Import MovieProvider
-import '../models/genre.dart';
-import '../models/movie.dart';
-import '../providers/downloads_provider.dart';
-import '../providers/favorites_provider.dart';
-import '../providers/watchlist_provider.dart';
-import '../providers/bottom_nav_visibility_provider.dart';
+import '../../api/api_constants.dart';
+import '../../providers/movie_provider.dart'; // Import MovieProvider
+import '../../models/genre.dart';
+import '../../models/movie.dart';
+import '../../providers/downloads_provider.dart';
+import '../../providers/favorites_provider.dart';
+import '../../providers/watchlist_provider.dart';
+import '../../providers/bottom_nav_visibility_provider.dart';
 import 'my_list_see_all_screen.dart'; // Import the enum
-import '../widgets/scroll_hiding_nav_wrapper.dart'; // Import widget mới
-import 'feedback_service.dart'; // Import service mới
+import '../../widgets/navigation/scroll_hiding_nav_wrapper.dart'; // Import widget mới
+import '../../services/feedback_service.dart'; // Import service mới
 
 enum SortOption { byName, byDateAdded }
 
