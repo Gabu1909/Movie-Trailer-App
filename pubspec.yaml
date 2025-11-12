@@ -18,6 +18,9 @@ dependencies:
   flutter_staggered_animations: ^1.1.1 # Thêm package này cho hiệu ứng danh sách
   flutter_local_notifications: ^17.1.2 # Để hiển thị thông báo cục bộ
   share_plus: ^7.2.1
+  audioplayers: ^6.0.0
+  sensors_plus: ^5.0.1
+  image_picker: ^1.0.7
 
   # Network requests
   http: ^1.2.0
@@ -57,3 +60,4 @@ flutter:
 
   assets:
     - assets/
+    - assets/sounds/
