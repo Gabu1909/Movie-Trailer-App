@@ -20,7 +20,7 @@ import '../screens/profile/notification_setting_screen.dart';
 import '../screens/shared/placeholder_screen.dart';
 import '../screens/profile/help_center_screen.dart';
 import '../screens/shared/login_screen.dart';
-import '../screens/shared/register_screen.dart';
+import '../screens/shared/signup_screen.dart';
 import '../screens/shared/splash_screen.dart';
 import '../screens/profile/security_screen.dart';
 
