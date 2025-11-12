@@ -8,6 +8,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../../api/api_constants.dart';
 import '../../models/movie.dart';
+import '../../models/genre.dart';
 import '../../providers/movie_detail_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/downloads_provider.dart';
@@ -417,6 +418,26 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                           const SizedBox(height: 16),
                           _buildOverviewCard(movie),
 
+                          // Genres Section (below Overview)
+                          if (movie.genres != null && movie.genres!.isNotEmpty)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 20),
+                                const Text(
+                                  'GENRES',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white70,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _buildGenresSection(movie.genres!),
+                              ],
+                            ),
+
                           const SizedBox(height: 35),
 
                           // Action Buttons with enhanced design
@@ -554,6 +575,40 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
           overflow: TextOverflow.ellipsis,
         ),
       ],
+    );
+  }
+
+  Widget _buildGenresSection(List<Genre> genres) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: genres.map((genre) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.purpleAccent.withOpacity(0.2),
+                Colors.pinkAccent.withOpacity(0.2),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.purpleAccent.withOpacity(0.4),
+              width: 1.2,
+            ),
+          ),
+          child: Text(
+            genre.name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

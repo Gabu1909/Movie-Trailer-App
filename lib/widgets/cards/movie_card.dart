@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../api/api_constants.dart';
 import '../../models/movie.dart';
 import '../../services/feedback_service.dart';
+import '../../screens/movie/movie_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class MovieCard extends StatefulWidget {
@@ -77,8 +78,21 @@ class _MovieCardState extends State<MovieCard> {
           FeedbackService.lightImpact(context);
           await Future.delayed(const Duration(milliseconds: 100));
           if (context.mounted) {
-            context.push('/movie/${movie.id}',
-                extra: {'heroTag': 'movie_card_${movie.id}'});
+            // Try GoRouter first
+            try {
+              context.push('/movie/${movie.id}',
+                  extra: {'heroTag': 'movie_card_${movie.id}'});
+            } catch (e) {
+              // Fallback to MaterialPageRoute with rootNavigator for Apply Filters case
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (context) => MovieDetailScreen(
+                    movieId: movie.id,
+                    heroTag: 'movie_card_${movie.id}',
+                  ),
+                ),
+              );
+            }
           }
         },
         onTapCancel: () => setState(() => _isPressed = false),

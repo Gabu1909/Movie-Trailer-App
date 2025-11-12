@@ -10,7 +10,7 @@ import '../../widgets/cards/trending_movie_card_placeholder.dart'; // Import pla
 import '../../widgets/navigation/custom_app_bar.dart'; // Import CustomAppBar
 import '../../theme/constants.dart';
 import '../../models/genre.dart';
-import 'see_all_screen.dart'; // Import SeeAllScreen
+import 'see_all_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -384,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen>
                   duration: const Duration(milliseconds: 200),
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      print('🎯 Apply Filters button pressed');
+                      print(' Apply Filters button pressed');
 
                       final movieProvider =
                           Provider.of<MovieProvider>(context, listen: false);
@@ -393,24 +393,24 @@ class _HomeScreenState extends State<HomeScreen>
 
                       // Close drawer
                       Navigator.of(context).pop();
-                      print('✅ Drawer closed');
+                      print('Drawer closed');
 
                       // ĐỢI drawer đóng hoàn toàn
                       await Future.delayed(const Duration(milliseconds: 300));
 
-                      print('🔍 Starting to fetch movies...');
+                      print('Starting to fetch movies...');
                       print(
-                          '📊 Selected genres: ${movieProvider.selectedDrawerGenreIds}');
+                          'Selected genres: ${movieProvider.selectedDrawerGenreIds}');
                       print(
-                          '🌍 Selected countries: ${movieProvider.selectedCountries}');
+                          'Selected countries: ${movieProvider.selectedCountries}');
 
                       try {
                         // Fetch movies
                         final movies = await movieProvider.getMoviesByFilter();
                         final title = movieProvider.getSelectedGenresText();
 
-                        print('✅ Fetched ${movies.length} movies');
-                        print('📝 Title: $title');
+                        print('Fetched ${movies.length} movies');
+                        print('Title: $title');
 
                         if (movies.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -424,10 +424,9 @@ class _HomeScreenState extends State<HomeScreen>
                           return;
                         }
 
-                        // Navigate NGAY - dùng navigator đã lưu từ đầu
                         print(
-                            '🚀 Navigating to /see-all with ${movies.length} movies');
-                        print('🎬 First movie: ${movies.first.title}');
+                            'Navigating to /see-all with ${movies.length} movies');
+                        print('First movie: ${movies.first.title}');
 
                         navigator.push(
                           MaterialPageRoute(
@@ -438,9 +437,9 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         );
 
-                        print('✅ Navigation completed');
+                        print('Navigation completed');
                       } catch (e) {
-                        print('❌ ERROR applying filters: $e');
+                        print('ERROR applying filters: $e');
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Error: $e'),
@@ -640,8 +639,6 @@ class _HomeScreenState extends State<HomeScreen>
             alignment: Alignment.center,
             children: [
               AnimatedSwitcher(
-                // Nâng cấp: Sử dụng cross-fade để chuyển đổi mượt mà hơn
-                // giữa shimmer và danh sách phim.
                 transitionBuilder: (child, animation) {
                   return FadeTransition(
                     opacity: animation,
