@@ -13,7 +13,7 @@ import '../screens/player/local_video_player_screen.dart';
 import '../screens/actor/actor_detail_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
-import '../screens/notifications/notification_screen.dart';
+import '../screens/profile/notification_setting_screen.dart';
 import '../screens/shared/placeholder_screen.dart';
 import '../screens/profile/help_center_screen.dart';
 import '../screens/profile/security_screen.dart';
