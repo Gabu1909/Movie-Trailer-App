@@ -23,6 +23,9 @@ class _LocalVideoPlayerScreenState extends State<LocalVideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    print('🎥 LocalVideoPlayerScreen initialized');
+    print('📂 Playing file: ${widget.filePath}');
+    print('🎬 Movie title: ${widget.title}');
     _controller = VideoPlayerController.file(File(widget.filePath))
       ..initialize().then((_) {
         setState(() {});

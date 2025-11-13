@@ -37,8 +37,27 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         // Các provider không phụ thuộc
         ChangeNotifierProvider(create: (_) => MovieProvider()),
-        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(create: (_) => WatchlistProvider()),
+
+        // FavoritesProvider phụ thuộc vào AuthProvider
+        ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
+          create: (context) => FavoritesProvider(),
+          update: (context, authProvider, previous) {
+            final provider = previous ?? FavoritesProvider();
+            provider.setUserId(authProvider.currentUser?.id);
+            return provider;
+          },
+        ),
+
+        // WatchlistProvider phụ thuộc vào AuthProvider
+        ChangeNotifierProxyProvider<AuthProvider, WatchlistProvider>(
+          create: (context) => WatchlistProvider(),
+          update: (context, authProvider, previous) {
+            final provider = previous ?? WatchlistProvider();
+            provider.setUserId(authProvider.currentUser?.id);
+            return provider;
+          },
+        ),
+
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => BottomNavVisibilityProvider()),
         ChangeNotifierProvider(create: (_) => ActorDetailProvider()),
@@ -46,12 +65,18 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(
             create: (_) => SearchProvider()), // Thêm SearchProvider
-        // DownloadsProvider phụ thuộc vào NotificationProvider
-        ChangeNotifierProxyProvider<NotificationProvider, DownloadsProvider>(
+        // DownloadsProvider phụ thuộc vào NotificationProvider và AuthProvider
+        ChangeNotifierProxyProvider2<NotificationProvider, AuthProvider,
+            DownloadsProvider>(
           create: (context) => DownloadsProvider(
               notificationProvider: context.read<NotificationProvider>()),
-          update: (context, notificationProvider, previous) =>
-              previous!..updateDependencies(notificationProvider),
+          update: (context, notificationProvider, authProvider, previous) {
+            final provider = previous ??
+                DownloadsProvider(notificationProvider: notificationProvider);
+            provider.updateDependencies(notificationProvider);
+            provider.setUserId(authProvider.currentUser?.id);
+            return provider;
+          },
         ),
       ],
       child: Builder(builder: (context) {

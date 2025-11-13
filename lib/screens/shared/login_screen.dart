@@ -16,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<double> _fadeAnimation;
 
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameOrEmailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _controller.dispose();
-    _emailController.dispose();
+    _usernameOrEmailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -51,19 +51,30 @@ class _LoginScreenState extends State<LoginScreen>
 
     try {
       await Provider.of<AuthProvider>(context, listen: false).login(
-        _emailController.text.trim(),
+        _usernameOrEmailController.text.trim(),
         _passwordController.text.trim(),
       );
-      // Điều hướng đến trang chủ nếu đăng nhập thành công
+      // Navigate to home if login successful
       if (mounted) context.go('/home');
     } catch (error) {
-      // Giả sử lỗi 'user-not-found' được trả về khi email chưa đăng ký.
-      if (error.toString().toLowerCase().contains('user not found')) {
-        _showRegisterDialog();
-      } else {
-        // Hiển thị thông báo lỗi chung cho các trường hợp khác (sai mật khẩu, v.v.)
+      // Show specific error messages
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi đăng nhập: ${error.toString()}')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    error.toString(),
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.white,
+          ),
         );
       }
     } finally {
@@ -73,29 +84,6 @@ class _LoginScreenState extends State<LoginScreen>
         });
       }
     }
-  }
-
-  void _showRegisterDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Thông báo'),
-        content: const Text(
-            'Tài khoản này chưa được đăng ký. Bạn có muốn tạo tài khoản mới không?'),
-        actions: <Widget>[
-          TextButton(
-              child: const Text('Hủy'),
-              onPressed: () => Navigator.of(ctx).pop()),
-          TextButton(
-            child: const Text('Đăng ký'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.go('/register');
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -139,9 +127,9 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         children: [
                           _buildInputField(
-                              controller: _emailController,
-                              hint: 'Email',
-                              icon: Icons.email),
+                              controller: _usernameOrEmailController,
+                              hint: 'Username or Email',
+                              icon: Icons.person),
                           const SizedBox(height: 20),
                           _buildInputField(
                               controller: _passwordController,
