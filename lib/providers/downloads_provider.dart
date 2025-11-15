@@ -207,7 +207,11 @@ class DownloadsProvider with ChangeNotifier {
 
       _statuses[movie.id] = DownloadStatus.Downloaded;
       _filePaths[movie.id] = filePath;
-      _downloadedMovies.add(movie);
+
+      // Kiểm tra xem movie đã có trong list chưa trước khi add
+      if (!_downloadedMovies.any((m) => m.id == movie.id)) {
+        _downloadedMovies.add(movie);
+      }
       _errorMessages.remove(movie.id); // Xóa lỗi cũ nếu có
 
       // Gửi thông báo khi tải xong
