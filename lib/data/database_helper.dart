@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/notification_item.dart';
 import '../models/movie.dart';
 
 class DatabaseHelper {
@@ -18,9 +17,9 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    // Tăng version lên 14 để thêm trailerKey column
+    // Tăng version lên 15 để clean duplicate downloads
     return await openDatabase(path,
-        version: 14, onCreate: _createDB, onUpgrade: _onUpgrade);
+        version: 15, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future _createDB(Database db, int version) async {
@@ -69,6 +68,17 @@ class DatabaseHelper {
         routeArgs TEXT
       )
     ''');
+
+    // ⚡ Create indexes for optimization
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_movies_userId ON movies(userId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_movies_dateAdded ON movies(dateAdded)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_downloads_userId ON downloads(userId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notifications_timestamp ON notifications(timestamp)');
+    print('✅ Database indexes created');
   }
 
   // Xử lý nâng cấp DB nếu cấu trúc thay đổi
@@ -172,6 +182,28 @@ class DatabaseHelper {
         print('✅ Added trailerKey column');
       } catch (e) {
         print('⚠️ Error adding trailerKey column (may already exist): $e');
+      }
+    }
+
+    // Version 15: Clean duplicate downloads
+    if (oldVersion < 15) {
+      print('🧹 Cleaning duplicate downloads...');
+      try {
+        // Xóa duplicate downloads, giữ lại row đầu tiên
+        await db.execute('''
+          DELETE FROM downloads 
+          WHERE rowid NOT IN (
+            SELECT MIN(rowid) 
+            FROM downloads 
+            GROUP BY id, userId
+          )
+        ''');
+        final result =
+            await db.rawQuery('SELECT COUNT(*) as count FROM downloads');
+        final count = result.first['count'] as int;
+        print('✅ Cleaned duplicates. Remaining downloads: $count');
+      } catch (e) {
+        print('⚠️ Error cleaning duplicates: $e');
       }
     }
 
@@ -351,11 +383,13 @@ class DatabaseHelper {
       String userId) async {
     final db = await database;
     // Sử dụng INNER JOIN để kết hợp bảng 'movies' và 'downloads'
+    // Thêm DISTINCT và GROUP BY để loại bỏ duplicate
     final result = await db.rawQuery('''
-      SELECT m.*, d.filePath
+      SELECT DISTINCT m.*, d.filePath
       FROM movies m
       INNER JOIN downloads d ON m.id = d.id
       WHERE d.userId = ?
+      GROUP BY m.id
     ''', [userId]);
     return result;
   }
@@ -376,39 +410,5 @@ class DatabaseHelper {
       );
     }
     return movieFromApi; // Return the API movie if not in DB
-  }
-
-  // --- Notifications ---
-  Future<void> addNotification(NotificationItem notification) async {
-    final db = await instance.database;
-    await db.insert('notifications', notification.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
-  }
-
-  Future<List<NotificationItem>> getNotifications() async {
-    final db = await instance.database;
-    final result = await db.query('notifications', orderBy: 'timestamp DESC');
-    return result.map((json) => NotificationItem.fromMap(json)).toList();
-  }
-
-  Future<void> markNotificationAsRead(String id) async {
-    final db = await instance.database;
-    await db.update('notifications', {'isRead': 1},
-        where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<void> markAllNotificationsAsRead() async {
-    final db = await instance.database;
-    await db.update('notifications', {'isRead': 1}, where: 'isRead = 0');
-  }
-
-  Future<void> deleteNotification(String id) async {
-    final db = await instance.database;
-    await db.delete('notifications', where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<void> deleteAllNotifications() async {
-    final db = await instance.database;
-    await db.delete('notifications');
   }
 }

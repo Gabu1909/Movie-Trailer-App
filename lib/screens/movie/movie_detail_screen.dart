@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../../api/api_constants.dart';
 import '../../models/movie.dart';
@@ -83,48 +82,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
   }
 
   void _playTrailer(BuildContext context, String? trailerKey) {
-    print('🎬 _playTrailer called with trailerKey: $trailerKey');
     if (trailerKey != null) {
-      print(
-          '▶️ Playing YouTube video: https://youtube.com/watch?v=$trailerKey');
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          opaque: false,
-          pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
-            backgroundColor: Colors.black.withOpacity(0.85),
-            body: Center(
-              child: YoutubePlayer(
-                controller: YoutubePlayerController(
-                  initialVideoId: trailerKey,
-                  flags: const YoutubePlayerFlags(
-                    autoPlay: true,
-                    mute: false,
-                    forceHD: true,
-                  ),
-                ),
-                progressIndicatorColor: Colors.pinkAccent,
-                progressColors: const ProgressBarColors(
-                  playedColor: Colors.pinkAccent,
-                  handleColor: Colors.pinkAccent,
-                ),
-                onReady: () {},
-                bottomActions: [
-                  CurrentPosition(),
-                  ProgressBar(isExpanded: true),
-                  RemainingDuration(),
-                  const PlaybackSpeedButton(),
-                  IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => context.pop()),
-                ],
-              ),
-            ),
-          ),
-        ),
+      context.push(
+        '/play-youtube/$trailerKey',
+        extra: {'title': 'Trailer'},
       );
-    } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No trailer available.')));
     }
   }
 
@@ -238,41 +200,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                                 FeedbackService.lightImpact(context);
                                 fav.toggleFavorite(movie);
                                 FeedbackService.playSound(context);
-
-                                // Hiển thị thông báo đồng nhất
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Row(
-                                      children: [
-                                        Icon(
-                                          isFav
-                                              ? Icons.heart_broken
-                                              : Icons.favorite,
-                                          color: isFav
-                                              ? Colors.orange
-                                              : Colors.green,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            isFav
-                                                ? '"${movie.title}" removed from Favorites'
-                                                : '"${movie.title}" added to Favorites',
-                                            style: const TextStyle(
-                                                color: Colors.black),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    backgroundColor: Colors.white,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    margin: const EdgeInsets.all(16),
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
                               },
                             );
                           },
@@ -312,9 +239,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                           Center(
                             child: GestureDetector(
                               onTap: () {
-                                print(
-                                    '🎥 Play button tapped for movie: ${movie.title} (ID: ${movie.id})');
-                                print('🔑 TrailerKey: ${movie.trailerKey}');
                                 FeedbackService.playSound(context);
                                 _playTrailer(context, movie.trailerKey);
                               },
@@ -739,36 +663,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
                 onTap: () {
                   FeedbackService.playSound(context);
                   watchlist.toggleWatchlist(movie);
-
-                  // Hiển thị thông báo đồng nhất
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          Icon(
-                            isIn ? Icons.bookmark_remove : Icons.bookmark_added,
-                            color: isIn ? Colors.orange : Colors.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              isIn
-                                  ? '"${movie.title}" removed from Watchlist'
-                                  : '"${movie.title}" added to Watchlist',
-                              style: const TextStyle(color: Colors.black),
-                            ),
-                          ),
-                        ],
-                      ),
-                      backgroundColor: Colors.white,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      margin: const EdgeInsets.all(16),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
                 },
                 child: _buildActionButton(
                   isIn ? Icons.bookmark : Icons.bookmark_border,
@@ -959,8 +853,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
         break;
       case DownloadStatus.Downloaded:
         final filePath = provider.getFilePath(movie.id);
-        print('🎬 Playing downloaded movie: ${movie.title} (ID: ${movie.id})');
-        print('📁 FilePath: $filePath');
         if (filePath != null) {
           context.push('/play-local/${movie.id}',
               extra: {'filePath': filePath, 'title': movie.title});
@@ -1056,31 +948,6 @@ class _MovieDetailScreenState extends State<MovieDetailScreen>
           onTap: () {
             provider.downloadMovie(movie, quality);
             Navigator.pop(sheetContext);
-
-            // Hiển thị thông báo đồng nhất
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.download_for_offline, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '"${movie.title}" download started (${quality == DownloadQuality.high ? 'High' : 'Medium'} Quality)',
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.white,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                margin: const EdgeInsets.all(16),
-                duration: const Duration(seconds: 2),
-              ),
-            );
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(

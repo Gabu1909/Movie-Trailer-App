@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 class LocalVideoPlayerScreen extends StatefulWidget {
@@ -23,6 +24,13 @@ class _LocalVideoPlayerScreenState extends State<LocalVideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Enable landscape mode and hide system UI
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     print('🎥 LocalVideoPlayerScreen initialized');
     print('📂 Playing file: ${widget.filePath}');
     print('🎬 Movie title: ${widget.title}');
@@ -43,6 +51,14 @@ class _LocalVideoPlayerScreenState extends State<LocalVideoPlayerScreen> {
 
   @override
   void dispose() {
+    // Restore orientation and system UI
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _controller.dispose();
     super.dispose();
   }
@@ -51,11 +67,6 @@ class _LocalVideoPlayerScreenState extends State<LocalVideoPlayerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.black,
-        elevation: 0,
-      ),
       body: Center(
         child: _controller.value.isInitialized
             ? AspectRatio(

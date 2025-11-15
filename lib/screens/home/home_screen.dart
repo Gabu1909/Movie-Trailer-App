@@ -11,6 +11,7 @@ import '../../widgets/navigation/custom_app_bar.dart'; // Import CustomAppBar
 import '../../theme/constants.dart';
 import '../../models/genre.dart';
 import 'see_all_screen.dart';
+import '../../utils/ui_helpers.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -160,7 +161,8 @@ class _HomeScreenState extends State<HomeScreen>
                         title: 'Top Rated', movies: provider.topRatedMovies),
                   // Giữ nguyên "Best for Kids" và sửa lại để dùng _kidsMovies
                   if (provider.kidsMovies.isNotEmpty)
-                    MovieList(title: 'Best for Kids', movies: provider.kidsMovies),
+                    MovieList(
+                        title: 'Best for Kids', movies: provider.kidsMovies),
                   // Thêm phần "Recommendations"
                   if (provider.weeklyTrendingMovies.isNotEmpty)
                     MovieList(
@@ -236,9 +238,7 @@ class _HomeScreenState extends State<HomeScreen>
 
               if (movies.isEmpty) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No movies found')),
-                  );
+                  UIHelpers.showWarningSnackBar(context, 'No movies found');
                 }
                 return;
               }
@@ -266,13 +266,7 @@ class _HomeScreenState extends State<HomeScreen>
               if (!context.mounted) return;
 
               // Show loading indicator
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (dialogContext) => const Center(
-                  child: CircularProgressIndicator(color: Colors.pinkAccent),
-                ),
-              );
+              UIHelpers.showLoadingDialog(context);
 
               try {
                 print('DEBUG: Fetching TV shows...');
@@ -281,14 +275,12 @@ class _HomeScreenState extends State<HomeScreen>
 
                 if (!context.mounted) return;
 
-                // Close loading với rootNavigator
-                Navigator.of(context, rootNavigator: true).pop();
+                // Close loading
+                UIHelpers.hideLoadingDialog(context);
 
                 if (tvShows.isEmpty) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No TV shows found')),
-                    );
+                    UIHelpers.showWarningSnackBar(context, 'No TV shows found');
                   }
                   return;
                 }
@@ -300,10 +292,9 @@ class _HomeScreenState extends State<HomeScreen>
               } catch (e) {
                 print('ERROR fetching TV shows: $e');
                 if (!context.mounted) return;
-                Navigator.of(context, rootNavigator: true).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error loading TV shows: $e')),
-                );
+                UIHelpers.hideLoadingDialog(context);
+                UIHelpers.showErrorSnackBar(
+                    context, 'Error loading TV shows: $e');
               }
             },
           ),

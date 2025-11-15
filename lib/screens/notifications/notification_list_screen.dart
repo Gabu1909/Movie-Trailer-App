@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../models/app_notification.dart';
 import '../../providers/notification_provider.dart';
+import '../../utils/ui_helpers.dart';
 
 class NotificationListScreen extends StatelessWidget {
   const NotificationListScreen({super.key});
@@ -71,7 +72,8 @@ class NotificationListScreen extends StatelessWidget {
   }
 
   // Widget để xây dựng danh sách thông báo, có thể tái sử dụng
-  Widget _buildNotificationItem(BuildContext context, AppNotification notification) {
+  Widget _buildNotificationItem(
+      BuildContext context, AppNotification notification) {
     IconData iconData;
     Color iconColor;
 
@@ -99,23 +101,22 @@ class NotificationListScreen extends StatelessWidget {
       case NotificationType.actor:
         iconData = Icons.star_border_purple500_outlined;
         iconColor = Colors.amber;
-        break;
-      default:
-        iconData = Icons.notifications;
-        iconColor = Colors.blue;
     }
 
     return Dismissible(
-      key: Key(notification.id), // Key là bắt buộc để Flutter xác định đúng widget
-      direction: DismissDirection.endToStart, // Chỉ cho phép vuốt từ phải sang trái
+      key: Key(
+          notification.id), // Key là bắt buộc để Flutter xác định đúng widget
+      direction:
+          DismissDirection.endToStart, // Chỉ cho phép vuốt từ phải sang trái
       onDismissed: (direction) {
         // Gọi provider để xóa thông báo khỏi danh sách
-        context.read<NotificationProvider>().removeNotification(notification.id);
+        context
+            .read<NotificationProvider>()
+            .removeNotification(notification.id);
 
         // Hiển thị SnackBar để thông báo và có thể hoàn tác
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${notification.title}" đã được xóa.')),
-        );
+        UIHelpers.showSuccessSnackBar(
+            context, '"${notification.title}" đã được xóa.');
       },
       background: Container(
         color: Colors.red.withOpacity(0.8),
@@ -131,7 +132,9 @@ class NotificationListScreen extends StatelessWidget {
           }
         },
         child: Container(
-          color: notification.isRead ? Colors.transparent : Colors.white.withOpacity(0.05),
+          color: notification.isRead
+              ? Colors.transparent
+              : Colors.white.withOpacity(0.05),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,11 +145,18 @@ class NotificationListScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(notification.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(notification.title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
                     const SizedBox(height: 4),
-                    Text(notification.body, style: const TextStyle(color: Colors.white70)),
+                    Text(notification.body,
+                        style: const TextStyle(color: Colors.white70)),
                     const SizedBox(height: 8),
-                    Text(timeago.format(notification.timestamp), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    Text(timeago.format(notification.timestamp),
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12)),
                   ],
                 ),
               ),
@@ -158,7 +168,8 @@ class NotificationListScreen extends StatelessWidget {
   }
 
   // Widget để hiển thị ListView hoặc thông báo trống
-  Widget _buildNotificationList(BuildContext context, List<AppNotification> notifications, String emptyMessage) {
+  Widget _buildNotificationList(BuildContext context,
+      List<AppNotification> notifications, String emptyMessage) {
     if (notifications.isEmpty) {
       return Center(
         child: Text(

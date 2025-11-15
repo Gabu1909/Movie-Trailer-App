@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../providers/auth_provider.dart';
+import '../../utils/ui_helpers.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -102,23 +103,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Failed to update profile: $e',
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.white,
-          ),
-        );
+        UIHelpers.showErrorSnackBar(context, 'Failed to update profile: $e');
       }
     } finally {
       if (mounted) {
@@ -306,43 +291,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text(
-                    'Image selected successfully!',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.white,
-              duration: Duration(seconds: 1),
-            ),
-          );
+          UIHelpers.showSuccessSnackBar(
+              context, 'Image selected successfully!');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Failed to pick image: $e',
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.white,
-          ),
-        );
+        UIHelpers.showErrorSnackBar(context, 'Failed to pick image: $e');
       }
     }
   }

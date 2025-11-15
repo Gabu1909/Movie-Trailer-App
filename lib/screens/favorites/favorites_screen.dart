@@ -5,9 +5,6 @@ import 'package:go_router/go_router.dart';
 // import 'package:share_plus/share_plus.dart'; // Tạm comment để tránh lỗi
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart'; // Thêm import để sử dụng SystemSound
-import 'package:intl/intl.dart'; // Import for DateFormat
-import 'package:youtube_player_flutter/youtube_player_flutter.dart'; // YouTube player
-// import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Tạm comment
 import '../../api/api_constants.dart';
 import '../../providers/movie_provider.dart'; // Import MovieProvider
 import '../../models/genre.dart';
@@ -15,10 +12,9 @@ import '../../models/movie.dart';
 import '../../providers/downloads_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/watchlist_provider.dart';
-import '../../providers/bottom_nav_visibility_provider.dart';
 import 'my_list_see_all_screen.dart'; // Import the enum
-import '../../widgets/navigation/scroll_hiding_nav_wrapper.dart'; // Import widget mới
 import '../../services/feedback_service.dart'; // Import service mới
+import '../../utils/ui_helpers.dart';
 
 enum SortOption { byName, byDateAdded }
 
@@ -161,29 +157,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     // Hiển thị SnackBar đồng nhất sau khi làm mới xong
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.check_circle_outline, color: Colors.green),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Lists have been updated successfully!',
-                  style: TextStyle(color: Colors.black),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.white,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      UIHelpers.showSuccessSnackBar(
+          context, 'Lists have been updated successfully!');
     }
   }
 
@@ -264,9 +239,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       featuredMovie = highestRatedSorted.first;
 
       // Ưu tiên hiển thị "Recently Added" nếu phim có rating cao nhất cũng là phim mới nhất
-      if (mostRecent != null &&
-          featuredMovie != null &&
-          featuredMovie.id == mostRecent.id) {
+      if (mostRecent != null && featuredMovie.id == mostRecent.id) {
         reason = FeaturedReason.recentlyAdded;
       } else {
         reason = FeaturedReason.highestRated;
@@ -331,8 +304,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                       if (_searchQuery.isEmpty && _selectedGenreId == null)
                         const SizedBox(height: 20),
                       if (filteredDownloads.isNotEmpty) ...[
-                        _buildDownloadsSection(
-                            context), // Không truyền filteredDownloads nữa
+                        _buildDownloadsSection(context, filteredDownloads),
                         const SizedBox(height: 20),
                       ],
                       _buildFavoritesSection(
@@ -367,20 +339,6 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     return sortedList;
   }
 
-  void _toggleWatchlist(BuildContext context, Movie movie) {
-    context.read<WatchlistProvider>().toggleWatchlist(movie);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.read<WatchlistProvider>().isInWatchlist(movie.id)
-              ? '${movie.title} added to Watchlist!'
-              : '${movie.title} removed from Watchlist!',
-        ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-
   // === FEATURED MOVIE ===
   // Helper function to navigate to movie/TV detail
   void _goToMovieDetail(BuildContext context, Movie movie) {
@@ -393,80 +351,20 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     FeedbackService.lightImpact(context);
 
     // Tạm thời disable share vì package lỗi
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Share feature temporarily disabled')),
-    );
+    UIHelpers.showInfoSnackBar(context, 'Share feature temporarily disabled');
   }
 
   // Helper function to play YouTube trailer
   void _playTrailer(BuildContext context, String? trailerKey) {
     if (trailerKey == null || trailerKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Trailer not available for this movie'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      UIHelpers.showWarningSnackBar(
+          context, 'Trailer not available for this movie');
       return;
     }
 
-    print('🎬 Playing trailer from favorites list: $trailerKey');
-    print('▶️ Playing YouTube video: https://youtube.com/watch?v=$trailerKey');
-
-    // Show YouTube player in fullscreen
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
-          backgroundColor: Colors.black.withOpacity(0.85),
-          body: Stack(
-            children: [
-              Center(
-                child: YoutubePlayer(
-                  controller: YoutubePlayerController(
-                    initialVideoId: trailerKey,
-                    flags: const YoutubePlayerFlags(
-                      autoPlay: true,
-                      mute: false,
-                      forceHD: true,
-                    ),
-                  ),
-                  progressIndicatorColor: Colors.pinkAccent,
-                  progressColors: const ProgressBarColors(
-                    playedColor: Colors.pinkAccent,
-                    handleColor: Colors.pinkAccent,
-                  ),
-                  onReady: () {
-                    print('✅ YouTube player ready');
-                  },
-                  bottomActions: [
-                    CurrentPosition(),
-                    ProgressBar(isExpanded: true),
-                    RemainingDuration(),
-                    const PlaybackSpeedButton(),
-                  ],
-                ),
-              ),
-              // Nút thoát ở góc trên bên phải
-              Positioned(
-                top: 40,
-                right: 16,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.5),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    context.push(
+      '/play-youtube/$trailerKey',
+      extra: {'title': 'Trailer'},
     );
   }
 
@@ -742,21 +640,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               Navigator.of(dialogContext).pop(); // Đóng hộp thoại
               // HapticFeedback.mediumImpact() is not conditional yet, we can add it to FeedbackService if needed
               onConfirm(); // Thực hiện hành động xóa, âm thanh sẽ được gọi trong này
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(children: [
-                    const Icon(Icons.check_circle_outline, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text('"${movie.title}" has been removed.',
-                            style: const TextStyle(color: Colors.black))),
-                  ]),
-                  backgroundColor: Colors.white,
-                  behavior: SnackBarBehavior.floating, // Nổi lên trên
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  margin: const EdgeInsets.all(16),
-                ),
+              UIHelpers.showSuccessSnackBar(
+                context,
+                '"${movie.title}" has been removed.',
               );
             },
           ),
@@ -782,8 +668,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   // === DOWNLOADS SECTION ===
-  Widget _buildDownloadsSection(BuildContext context) {
-    // Không nhận tham số downloads
+  Widget _buildDownloadsSection(
+      BuildContext context, List<Movie> filteredDownloads) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -807,8 +693,6 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     '/my-list/see-all',
                     extra: {
                       'title': 'All Downloads',
-                      'movies':
-                          _downloads, // Sử dụng danh sách cục bộ _downloads
                       'listType': MyListType.downloads,
                     },
                   );
@@ -831,37 +715,24 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               ).animate(animation);
               return SlideTransition(position: slideAnimation, child: child);
             },
-            child: _downloads.isEmpty
+            child: filteredDownloads.isEmpty
                 ? _buildEmptyState(
                     key: const ValueKey('empty_downloads_animated'),
                     icon: Icons.cloud_off_outlined,
                     message: 'Movies you download will appear here.',
                   )
-                : AnimatedList(
-                    // Đóng AnimatedSwitcher ở đây
-                    key: _downloadsListKey, // Gán GlobalKey
-                    shrinkWrap: true, // Quan trọng khi nằm trong ListView
-                    physics:
-                        const NeverScrollableScrollPhysics(), // AnimatedList tự quản lý cuộn
-                    initialItemCount: _downloads.length,
-                    itemBuilder: (context, index, animation) {
-                      // Sử dụng FadeTransition thay vì animation package
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: animation.drive(
-                            Tween<Offset>(
-                              begin: const Offset(0, 0.1),
-                              end: Offset.zero,
-                            ).chain(CurveTween(curve: Curves.easeOut)),
-                          ),
-                          child: _buildDownloadItemWithAnimation(
-                              context,
-                              _downloads[index],
-                              context.read<DownloadsProvider>(),
-                              animation,
-                              index), // Gọi đúng hàm
-                        ),
+                : ListView.builder(
+                    key: const ValueKey('downloads_list'),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: filteredDownloads.length,
+                    itemBuilder: (context, index) {
+                      final movie = filteredDownloads[index];
+                      return _buildDownloadItem(
+                        context,
+                        movie,
+                        context.read<DownloadsProvider>(),
+                        key: ValueKey('download_${movie.id}_$index'),
                       );
                     },
                   ),
@@ -872,19 +743,22 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   Widget _buildDownloadItem(
-      BuildContext context, Movie movie, DownloadsProvider provider) {
+      BuildContext context, Movie movie, DownloadsProvider provider,
+      {Key? key}) {
     // Thêm tham số animation và index
-    return _buildDownloadItemWithAnimation(
-        context, movie, provider, null, null); // Hàm này chỉ là wrapper
+    return _buildDownloadItemWithAnimation(context, movie, provider, null, null,
+        key: key); // Hàm này chỉ là wrapper
   }
 
   Widget _buildDownloadItemWithAnimation(BuildContext context, Movie movie,
-      DownloadsProvider provider, Animation<double>? animation, int? index) {
+      DownloadsProvider provider, Animation<double>? animation, int? index,
+      {Key? key}) {
     // Tối ưu: Tính toán kích thước cache cho ảnh
     final double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final int memCacheWidth = (60 * devicePixelRatio).round();
     final int memCacheHeight = (90 * devicePixelRatio).round();
     final itemContent = Container(
+      key: key,
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -951,12 +825,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                         extra: {'filePath': filePath, 'title': movie.title});
                   } else {
                     print('❌ No local file found either');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content:
-                            Text('No trailer or downloaded video available'),
-                        backgroundColor: Colors.orange,
-                      ),
+                    UIHelpers.showWarningSnackBar(
+                      context,
+                      'No trailer or downloaded video available',
                     );
                   }
                 }
@@ -1024,7 +895,6 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     '/my-list/see-all',
                     extra: {
                       'title': title, // Dùng title được truyền vào
-                      'movies': favorites,
                       'listType': MyListType.favorites,
                     },
                   );
@@ -1158,7 +1028,6 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     '/my-list/see-all',
                     extra: {
                       'title': title, // Dùng title được truyền vào
-                      'movies': watchlist,
                       'listType': MyListType.watchlist,
                     },
                   );

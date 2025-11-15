@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../../providers/auth_provider.dart';
+import '../../utils/ui_helpers.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -61,43 +62,16 @@ class _SignupScreenState extends State<SignupScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text(
-                    'Profile photo selected!',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.white,
-              duration: Duration(seconds: 1),
-            ),
+          UIHelpers.showSuccessSnackBar(
+            context,
+            'Profile photo selected!',
+            duration: const Duration(seconds: 1),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Failed to pick image: $e',
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.white,
-          ),
-        );
+        UIHelpers.showErrorSnackBar(context, 'Failed to pick image: $e');
       }
     }
   }
@@ -183,21 +157,9 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
 
       // Display success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 8),
-              Text(
-                'Registration successful! Please login.',
-                style: TextStyle(color: Colors.black),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.white,
-          duration: Duration(seconds: 2),
-        ),
+      UIHelpers.showSuccessSnackBar(
+        context,
+        'Registration successful! Please login.',
       );
 
       // Chuyển đến trang Login
@@ -207,23 +169,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error, color: Colors.red),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  error.toString(),
-                  style: const TextStyle(color: Colors.black),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.white,
-        ),
-      );
+      UIHelpers.showErrorSnackBar(context, error.toString());
     } finally {
       if (mounted) {
         setState(() {

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async' show TimeoutException;
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +8,8 @@ import '../models/genre.dart';
 import '../models/actor_detail.dart';
 import '../models/movie.dart';
 import '../models/cast.dart';
+import '../utils/exceptions.dart' as app_exceptions;
+import '../utils/app_constants.dart';
 import 'api_constants.dart';
 
 class ApiService {
@@ -20,7 +24,6 @@ class ApiService {
   }
 
   Future<List<Movie>> getPopularMovies() async {
-    // Dùng Popular cho mục "Trending"
     return _getMovies(
         '${ApiConstants.baseUrl}/movie/popular?api_key=${ApiConstants.apiKey}');
   }
@@ -44,8 +47,6 @@ class ApiService {
     return _getMovies(uri.toString());
   }
 
-  // === DISCOVER WITH FILTERS (Thêm mới) ===
-  // Chỉ lấy MOVIES (phim lẻ), không có TV shows
   Future<List<Movie>> discoverMovies(
       String genreIds, String countryCodes) async {
     try {
@@ -111,7 +112,6 @@ class ApiService {
     return _getMovies(uri.toString());
   }
 
-  // === TV SHOWS ===
   Future<List<Movie>> getPopularTVShows() async {
     return _getMovies(
         '${ApiConstants.baseUrl}/tv/popular?api_key=${ApiConstants.apiKey}');
@@ -149,7 +149,6 @@ class ApiService {
     }
   }
 
-  // Lấy danh sách diễn viên nổi bật
   Future<List<Cast>> getPopularActors() async {
     try {
       final response = await http.get(Uri.parse(
@@ -190,7 +189,6 @@ class ApiService {
     }
   }
 
-  // Lấy thông tin chi tiết của diễn viên
   Future<ActorDetail> getActorDetails(int actorId) async {
     final dio = Dio();
     try {
@@ -219,12 +217,46 @@ class ApiService {
   }
 
   Future<List<Movie>> _getMovies(String url) async {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == 200) {
-      final decodedBody = json.decode(response.body)['results'] as List;
-      return decodedBody.map((movie) => Movie.fromJson(movie)).toList();
-    } else {
-      throw Exception('Failed to load movies');
+    try {
+      final response =
+          await http.get(Uri.parse(url)).timeout(AppConstants.apiTimeout);
+
+      if (response.statusCode == 200) {
+        try {
+          final decodedBody = json.decode(response.body)['results'] as List;
+          return decodedBody.map((movie) => Movie.fromJson(movie)).toList();
+        } on FormatException catch (e) {
+          debugPrint('JSON Parse Error: $e');
+          throw app_exceptions.ParseException(
+            'Invalid response format',
+            originalError: e,
+          );
+        }
+      } else {
+        debugPrint('API Error ${response.statusCode}: ${response.body}');
+        throw app_exceptions.ApiException(
+          'Failed to load movies',
+          statusCode: response.statusCode,
+        );
+      }
+    } on TimeoutException {
+      debugPrint('API Timeout: $url');
+      throw app_exceptions.TimeoutException('Request timed out');
+    } on SocketException {
+      debugPrint('Network Error: No internet connection');
+      throw app_exceptions.NetworkException('No internet connection');
+    } catch (e) {
+      debugPrint('Unexpected Error: $e');
+      if (e is app_exceptions.ApiException ||
+          e is app_exceptions.TimeoutException ||
+          e is app_exceptions.NetworkException ||
+          e is app_exceptions.ParseException) {
+        rethrow;
+      }
+      throw app_exceptions.ApiException(
+        'Failed to load movies',
+        originalError: e,
+      );
     }
   }
 }

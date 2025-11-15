@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import '../../theme/constants.dart';
-import '../../providers/bottom_nav_visibility_provider.dart';
 
 class MainWrapper extends StatelessWidget {
   final Widget child;
@@ -11,7 +8,7 @@ class MainWrapper extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/explore')) return 1; 
+    if (location.startsWith('/explore')) return 1;
     if (location.startsWith('/coming-soon')) return 2;
     if (location.startsWith('/my-list')) return 3;
     if (location.startsWith('/profile')) return 4;
@@ -63,7 +60,8 @@ class MainWrapper extends StatelessWidget {
           onTap: (index) => _onItemTapped(index, context),
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Explore"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.explore), label: "Explore"),
             BottomNavigationBarItem(
                 icon: Icon(Icons.new_releases), label: "Coming Soon"),
             BottomNavigationBarItem(icon: Icon(Icons.list), label: "My List"),

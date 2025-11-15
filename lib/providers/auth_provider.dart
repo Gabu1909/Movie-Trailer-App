@@ -209,4 +209,31 @@ class AuthProvider with ChangeNotifier {
     await _saveToPrefs();
     notifyListeners();
   }
+
+  // Change password
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_currentUser == null) {
+      throw 'No user is currently logged in.';
+    }
+
+    // Verify current password
+    if (_currentUser!.password != currentPassword) {
+      throw 'Current password is incorrect.';
+    }
+
+    // Check if new password is same as current
+    if (currentPassword == newPassword) {
+      throw 'New password must be different from current password.';
+    }
+
+    // Update password
+    _currentUser!.password = newPassword;
+    _users[_currentUser!.email] = _currentUser!;
+
+    await _saveToPrefs();
+    notifyListeners();
+  }
 }

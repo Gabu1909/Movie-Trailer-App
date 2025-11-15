@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/ui_helpers.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -72,23 +73,7 @@ class _LoginScreenState extends State<LoginScreen>
     } catch (error) {
       // Show specific error messages
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    error.toString(),
-                    style: const TextStyle(color: Colors.black),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.white,
-          ),
-        );
+        UIHelpers.showErrorSnackBar(context, error.toString());
       }
     } finally {
       if (mounted) {

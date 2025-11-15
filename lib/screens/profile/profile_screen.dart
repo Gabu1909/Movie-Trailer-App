@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/ui_helpers.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -146,29 +147,8 @@ class ProfileScreen extends StatelessWidget {
             final result = await context.push('/profile/edit');
             // Show success message if update was successful
             if (result == true && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: const [
-                      Icon(Icons.check_circle_outline, color: Colors.green),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Profile updated successfully!',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: Colors.white,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  margin: const EdgeInsets.all(16),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              UIHelpers.showSuccessSnackBar(
+                  context, 'Profile updated successfully!');
             }
           }),
           _buildMenuItem(context,
@@ -210,29 +190,12 @@ class ProfileScreen extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: () async {
         // Hiển thị hộp thoại xác nhận
-        final bool? confirmLogout = await showDialog(
-          context: context,
-          builder: (BuildContext dialogContext) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF2B124C),
-              title: const Text('Confirm Logout',
-                  style: TextStyle(color: Colors.white)),
-              content: const Text('Are you sure you want to log out?',
-                  style: TextStyle(color: Colors.white70)),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: Colors.white70)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Logout',
-                      style: TextStyle(color: Colors.pinkAccent)),
-                ),
-              ],
-            );
-          },
+        final bool confirmLogout = await UIHelpers.showConfirmDialog(
+          context,
+          'Are you sure you want to log out?',
+          title: 'Confirm Logout',
+          confirmText: 'Logout',
+          cancelText: 'Cancel',
         );
 
         // Nếu người dùng xác nhận, thực hiện đăng xuất

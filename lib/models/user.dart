@@ -3,7 +3,7 @@ class User {
   String name;
   String username; // Username for login - now mutable
   String email; // Email - now mutable
-  final String password; // Chỉ để mô phỏng, không nên lưu password thế này
+  String password; // Password - now mutable to allow password changes
   String? profileImageUrl;
   String? phone;
   String? gender;

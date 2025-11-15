@@ -81,52 +81,108 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       child: Builder(builder: (context) {
-        // Lấy AuthProvider đã được khởi tạo
+        // Lấy AuthProvider và SettingsProvider
         final authProvider = Provider.of<AuthProvider>(context);
+        final settingsProvider = Provider.of<SettingsProvider>(context);
         // Tạo AppRouter và truyền AuthProvider vào
         final appRouter = AppRouter(authProvider: authProvider);
+
+        // Xác định theme mode
+        ThemeMode themeMode;
+        switch (settingsProvider.themeMode) {
+          case AppThemeMode.light:
+            themeMode = ThemeMode.light;
+            break;
+          case AppThemeMode.dark:
+            themeMode = ThemeMode.dark;
+            break;
+          case AppThemeMode.system:
+            themeMode = ThemeMode.system;
+            break;
+        }
 
         return MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: 'Flutter Movie App',
+          themeMode: themeMode,
           theme: ThemeData(
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: kLightBackgroundColor,
+            primaryColor: kPrimaryColor,
+            colorScheme: const ColorScheme.light(
+              primary: kPrimaryColor,
+              secondary: kPrimaryColorLight,
+              surface: kLightSurfaceColor,
+              background: kLightBackgroundColor,
+              onSurface: kDarkTextColor,
+              onBackground: kDarkTextColor,
+            ),
+            textTheme: const TextTheme(
+              headlineSmall: TextStyle(
+                  color: kDarkTextColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24),
+              titleLarge: TextStyle(
+                  color: kDarkTextColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20),
+              titleMedium: TextStyle(color: kDarkTextColor, fontSize: 16),
+              bodyMedium: TextStyle(color: kLightTextColor, fontSize: 14),
+              bodySmall: TextStyle(color: kLightTextColor, fontSize: 12),
+              labelLarge: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16),
+            ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: kLightSurfaceColor,
+              elevation: 1,
+              iconTheme: IconThemeData(color: kDarkTextColor),
+              titleTextStyle: TextStyle(
+                  color: kDarkTextColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600),
+            ),
+            cardTheme: CardThemeData(
+              color: kLightCardColor,
+              elevation: 2,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+
+          // Dark Theme
+          darkTheme: ThemeData(
             brightness: Brightness.dark,
-            // Nền sẽ được set bằng Gradient trong home_screen,
-            // nhưng scaffoldBackgroundColor vẫn cần thiết
             scaffoldBackgroundColor: kDarkPurpleColor,
             primaryColor: kPrimaryColor,
-
             colorScheme: const ColorScheme.dark(
               primary: kPrimaryColor,
               secondary: kPrimaryColorLight,
-              surface: kLightPurpleColor, // Màu cho Card, AppBar...
+              surface: kLightPurpleColor,
               background: kDarkPurpleColor,
               onSurface: kSecondaryColor,
               onBackground: kSecondaryColor,
             ),
-
-            // Font chữ (Giả định dùng font hệ thống)
             textTheme: const TextTheme(
               headlineSmall: TextStyle(
                   color: kSecondaryColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 24), // "Trending"
+                  fontSize: 24),
               titleLarge: TextStyle(
                   color: kSecondaryColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 20), // "COMING SOON"
-              titleMedium: TextStyle(
-                  color: kSecondaryColor, fontSize: 16), // Tiêu đề AppBar
-              bodyMedium: TextStyle(color: kGreyColor, fontSize: 14), // Chữ phụ
-              bodySmall:
-                  TextStyle(color: kGreyColor, fontSize: 12), // "Lets Explore"
+                  fontSize: 20),
+              titleMedium: TextStyle(color: kSecondaryColor, fontSize: 16),
+              bodyMedium: TextStyle(color: kGreyColor, fontSize: 14),
+              bodySmall: TextStyle(color: kGreyColor, fontSize: 12),
               labelLarge: TextStyle(
                   color: kSecondaryColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16), // Chữ trên nút
+                  fontSize: 16),
             ),
-
-            // Theme cho AppBar (dùng ở các màn hình con)
             appBarTheme: const AppBarTheme(
               backgroundColor: kDarkPurpleColor,
               elevation: 0,
@@ -136,35 +192,26 @@ class _MyAppState extends State<MyApp> {
                   fontSize: 18,
                   fontWeight: FontWeight.w600),
             ),
-
-            // Theme cho Bottom Nav Bar
             bottomNavigationBarTheme: BottomNavigationBarThemeData(
-              backgroundColor: Colors.transparent, // Nền trong suốt
+              backgroundColor: Colors.transparent,
               elevation: 0,
-              selectedItemColor: kPrimaryColor, // Icon được chọn màu hồng
+              selectedItemColor: kPrimaryColor,
               unselectedItemColor: kGreyColor,
               showUnselectedLabels: true,
               type: BottomNavigationBarType.fixed,
-              // Style cho NHÃN (LABEL)
-              selectedLabelStyle: const TextStyle(
-                  color: kSecondaryColor,
-                  fontSize: 12), // Nhãn được chọn màu TRẮNG
+              selectedLabelStyle:
+                  const TextStyle(color: kSecondaryColor, fontSize: 12),
               unselectedLabelStyle:
                   const TextStyle(color: kGreyColor, fontSize: 12),
             ),
-
-            // Theme cho Card (quan trọng)
             cardTheme: CardThemeData(
               color: kLightPurpleColor,
               elevation: 2,
               clipBehavior: Clip.antiAlias,
-              // Bo góc tròn trịa như thiết kế
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
-
-            // Theme cho ChoiceChip (tab thể loại)
             chipTheme: ChipThemeData(
               backgroundColor: kLightPurpleColor.withOpacity(0.5),
               disabledColor: kLightPurpleColor,

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../explore_news_movie/movie_news_section.dart';
 import '../../api/api_constants.dart';
-import '../../theme/constants.dart'; // Tạo các màu tương tự HomeScreen
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -130,7 +129,8 @@ class _ExploreScreenState extends State<ExploreScreen>
               pinned: true,
               title: const Text(
                 'Explore Movies',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(70),
@@ -142,7 +142,8 @@ class _ExploreScreenState extends State<ExploreScreen>
                     decoration: InputDecoration(
                       hintText: 'Search by title...',
                       hintStyle: TextStyle(color: Colors.grey.shade400),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                      prefixIcon:
+                          Icon(Icons.search, color: Colors.grey.shade400),
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1),
                       border: OutlineInputBorder(
@@ -157,7 +158,8 @@ class _ExploreScreenState extends State<ExploreScreen>
             ),
             if (_isLoading)
               const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                child: Center(
+                    child: CircularProgressIndicator(color: Colors.white)),
               )
             else if (_error.isNotEmpty)
               SliverFillRemaining(
@@ -168,7 +170,8 @@ class _ExploreScreenState extends State<ExploreScreen>
                   ),
                 ),
               )
-            else if (_filteredArticles.isEmpty && _searchController.text.isNotEmpty)
+            else if (_filteredArticles.isEmpty &&
+                _searchController.text.isNotEmpty)
               const SliverFillRemaining(
                 child: Center(
                   child: Text(

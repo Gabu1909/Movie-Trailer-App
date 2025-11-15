@@ -21,9 +21,7 @@ class _SplashScreenState extends State<SplashScreen>
   final List<_Particle> _particles = [];
   late AnimationController _logoController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
-  late Animation<double> _rotationAnimation;
 
   @override
   void initState() {
@@ -47,13 +45,6 @@ class _SplashScreenState extends State<SplashScreen>
       curve: const Interval(0.0, 0.8, curve: Curves.easeInOut),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.elasticOut,
-      ),
-    );
-
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.4),
       end: Offset.zero,
@@ -61,13 +52,6 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(
         parent: _logoController,
         curve: Curves.easeOutCubic,
-      ),
-    );
-
-    _rotationAnimation = Tween<double>(begin: -0.05, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: Curves.elasticOut,
       ),
     );
 

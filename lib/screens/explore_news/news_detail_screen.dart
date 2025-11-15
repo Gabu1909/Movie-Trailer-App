@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Thêm import này
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../utils/ui_helpers.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final String articleUrl;
@@ -31,9 +32,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         onMessageReceived: (JavaScriptMessage message) {
           // Bước 2: Xử lý tin nhắn nhận được từ WebView
           // Ở đây, chúng ta hiển thị một SnackBar với nội dung tin nhắn
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message.message)),
-          );
+          UIHelpers.showInfoSnackBar(context, message.message);
         },
       )
       ..setNavigationDelegate(
@@ -114,7 +113,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.articleTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(widget.articleTitle,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: Stack(
         children: [

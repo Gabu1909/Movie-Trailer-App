@@ -7,7 +7,7 @@ import '../models/movie.dart';
 import '../utils/filter_helper.dart';
 import 'notification_provider.dart';
 
-class MovieProvider with ChangeNotifier {
+class MovieProvider with ChangeNotifier, WidgetsBindingObserver {
   final ApiService _apiService;
   final NotificationProvider? _notificationProvider;
 
@@ -64,8 +64,24 @@ class MovieProvider with ChangeNotifier {
   Future<void> get initializationComplete => _initializationCompleter.future;
 
   MovieProvider(this._apiService, [this._notificationProvider]) {
+    WidgetsBinding.instance.addObserver(this);
     fetchAllData();
     _startTrendingTimer(); // Bắt đầu bộ đếm thời gian tự động làm mới
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // App vào background, pause timer để tiết kiệm pin
+      _trendingRefreshTimer?.cancel();
+      debugPrint('⏸️ Timer paused - app in background');
+    } else if (state == AppLifecycleState.resumed) {
+      // App quay lại foreground, resume timer
+      _startTrendingTimer();
+      debugPrint('▶️ Timer resumed - app in foreground');
+    }
   }
 
   Future<void> fetchAllData() async {
@@ -350,6 +366,7 @@ class MovieProvider with ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _trendingRefreshTimer?.cancel(); // Hủy bộ đếm thời gian khi provider bị hủy
+    WidgetsBinding.instance.removeObserver(this); // Remove lifecycle observer
     super.dispose();
   }
 

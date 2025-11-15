@@ -12,7 +12,7 @@ import '../../api/api_constants.dart';
 import '../../models/movie.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/watchlist_provider.dart';
-import '../shared/feedback_service.dart';
+import '../../services/feedback_service.dart';
 
 class ComingSoonScreen extends StatefulWidget {
   const ComingSoonScreen({super.key});

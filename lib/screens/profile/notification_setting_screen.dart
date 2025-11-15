@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../utils/ui_helpers.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -44,20 +45,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
         key.replaceAll('notification_', '').replaceAll('_', ' ');
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.green),
-              const SizedBox(width: 8),
-              Text(
-                  '${settingName[0].toUpperCase()}${settingName.substring(1)} updated'),
-            ],
-          ),
-          backgroundColor: Colors.white,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
+      UIHelpers.showSuccessSnackBar(
+        context,
+        '${settingName[0].toUpperCase()}${settingName.substring(1)} updated',
       );
     }
   }

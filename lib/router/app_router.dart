@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../models/movie.dart';
 import '../models/cast.dart';
@@ -13,17 +11,18 @@ import '../screens/search/search_screen.dart';
 import '../screens/home/see_all_screen.dart';
 import '../screens/favorites/my_list_see_all_screen.dart';
 import '../screens/player/local_video_player_screen.dart';
+import '../screens/player/youtube_player_screen.dart';
 import '../screens/actor/actor_detail_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/notification_setting_screen.dart';
-import '../screens/shared/placeholder_screen.dart';
 import '../screens/notifications/notification_list_screen.dart';
 import '../screens/profile/help_center_screen.dart';
 import '../screens/shared/login_screen.dart';
 import '../screens/shared/signup_screen.dart';
 import '../screens/shared/splash_screen.dart';
 import '../screens/profile/security_screen.dart';
+import '../screens/profile/change_password_screen.dart';
 import '../screens/coming_soon/coming_soon_screen.dart'; // Đường dẫn đúng
 import '../screens/explore_news/explore_screen.dart';
 
@@ -69,6 +68,25 @@ class AppRouter {
         GoRoute(
           path: '/register',
           builder: (context, state) => const SignupScreen(),
+        ),
+        // Video player routes - outside ShellRoute to hide bottom navigation
+        GoRoute(
+          path: '/play-local/:id',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>;
+            final filePath = extra['filePath'] as String;
+            final title = extra['title'] as String;
+            return LocalVideoPlayerScreen(filePath: filePath, title: title);
+          },
+        ),
+        GoRoute(
+          path: '/play-youtube/:videoId',
+          builder: (context, state) {
+            final videoId = state.pathParameters['videoId']!;
+            final extra = state.extra as Map<String, dynamic>?;
+            final title = extra?['title'] as String? ?? 'Trailer';
+            return YouTubePlayerScreen(videoId: videoId, title: title);
+          },
         ),
         ShellRoute(
           navigatorKey: _shellNavigatorKey,
@@ -130,23 +148,11 @@ class AppRouter {
               builder: (context, state) {
                 final extra = state.extra as Map<String, dynamic>? ?? {};
                 final title = extra['title'] as String? ?? 'All Items';
-                final movies = extra['movies'] as List<Movie>? ?? [];
                 final listType = extra['listType'] as MyListType;
                 return MyListSeeAllScreen(
                   title: title,
-                  movies: movies,
                   listType: listType,
                 );
-              },
-            ),
-            GoRoute(
-              path: '/play-local/:id',
-              builder: (context, state) {
-                final movieId = int.parse(state.pathParameters['id']!);
-                final extra = state.extra as Map<String, dynamic>;
-                final filePath = extra['filePath'] as String;
-                final title = extra['title'] as String;
-                return LocalVideoPlayerScreen(filePath: filePath, title: title);
               },
             ),
             GoRoute(
@@ -161,11 +167,6 @@ class AppRouter {
               builder: (context, state) => const EditProfileScreen(),
             ),
             GoRoute(
-              path: '/setting',
-              builder: (context, state) =>
-                  const NotificationScreen(), // Deprecated, use /settings
-            ),
-            GoRoute(
               path: '/settings',
               builder: (context, state) => const NotificationScreen(),
             ),
@@ -176,6 +177,10 @@ class AppRouter {
             GoRoute(
               path: '/security',
               builder: (context, state) => const SecurityScreen(),
+            ),
+            GoRoute(
+              path: '/change-password',
+              builder: (context, state) => const ChangePasswordScreen(),
             ),
             GoRoute(
               path: '/notifications',

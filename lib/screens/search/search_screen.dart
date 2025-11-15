@@ -7,8 +7,9 @@ import 'package:shimmer/shimmer.dart';
 import '../../api/api_constants.dart';
 import '../../models/cast.dart';
 import '../../models/movie.dart';
-import '../../providers/search_provider.dart'; // Import provider mới
+import '../../providers/search_provider.dart';
 import '../../services/feedback_service.dart';
+import '../../theme/app_spacing.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -133,7 +134,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildLoadingIndicator() {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.paddingAll16,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         childAspectRatio: 2 / 3,
@@ -148,7 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppSpacing.radius12,
             ),
           ),
         );
@@ -157,13 +158,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildInitialState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.movie_filter_outlined, color: Colors.white38, size: 80),
-          SizedBox(height: 16),
-          Text(
+          const Icon(Icons.movie_filter_outlined,
+              color: Colors.white38, size: 80),
+          AppSpacing.height16,
+          const Text(
             'Start typing to find your favorite movies and actors.',
             style: TextStyle(color: Colors.white60, fontSize: 16),
             textAlign: TextAlign.center,
@@ -179,7 +181,7 @@ class _SearchScreenState extends State<SearchScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.search_off, color: Colors.white38, size: 80),
-          const SizedBox(height: 16),
+          AppSpacing.height16,
           Text(
             message,
             style: const TextStyle(color: Colors.white60, fontSize: 16),
@@ -192,7 +194,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildMovieResults(List<Movie> movies) {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.paddingAll16,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         childAspectRatio: 2 / 3,
@@ -208,7 +210,7 @@ class _SearchScreenState extends State<SearchScreen> {
             context.push('/movie/${movie.id}');
           },
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppSpacing.radius12,
             child: movie.posterPath != null
                 ? CachedNetworkImage(
                     imageUrl: '${ApiConstants.imageBaseUrl}${movie.posterPath}',

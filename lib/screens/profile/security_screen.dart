@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../providers/settings_provider.dart';
+import '../../utils/ui_helpers.dart';
 
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -34,21 +37,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
       String key, bool value, String settingName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, value);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text(
-              '$settingName updated successfully!',
-              style: const TextStyle(color: Colors.black),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.white, // Nền trắng
-      ),
-    );
+    UIHelpers.showSuccessSnackBar(
+        context, '$settingName updated successfully!');
   }
 
   @override
@@ -78,35 +68,31 @@ class _SecurityScreenState extends State<SecurityScreen> {
                       context,
                       title: 'Change Password',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Change Password functionality is under development.')),
-                        );
+                        context.push('/change-password');
                       },
                     ),
                     _buildNavigationItem(
                       context,
                       title: 'Two-Factor Authentication',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Two-Factor Authentication setup is under development.')),
-                        );
+                        UIHelpers.showInfoSnackBar(context,
+                            'Two-Factor Authentication setup is under development.');
                       },
                     ),
                     _buildNavigationItem(
                       context,
                       title: 'Login Activity',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Login Activity screen is under development.')),
-                        );
+                        UIHelpers.showInfoSnackBar(context,
+                            'Login Activity screen is under development.');
                       },
                     ),
+
+                    const SizedBox(height: 20),
+
+                    // Nhóm "Appearance"
+                    _buildSectionHeader('Appearance'),
+                    _buildThemeToggle(context),
 
                     const SizedBox(height: 20),
 
@@ -204,6 +190,103 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
+  // Widget for theme mode toggle
+  Widget _buildThemeToggle(BuildContext context) {
+    final settingsProvider = Provider.of<SettingsProvider>(context);
+
+    return Card(
+      color: Colors.white.withOpacity(0.1),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Theme Mode',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildThemeOption(
+                  context,
+                  'Light',
+                  Icons.light_mode,
+                  settingsProvider.themeMode == AppThemeMode.light,
+                  () => settingsProvider.setThemeMode(AppThemeMode.light),
+                ),
+                const SizedBox(width: 8),
+                _buildThemeOption(
+                  context,
+                  'Dark',
+                  Icons.dark_mode,
+                  settingsProvider.themeMode == AppThemeMode.dark,
+                  () => settingsProvider.setThemeMode(AppThemeMode.dark),
+                ),
+                const SizedBox(width: 8),
+                _buildThemeOption(
+                  context,
+                  'System',
+                  Icons.brightness_auto,
+                  settingsProvider.themeMode == AppThemeMode.system,
+                  () => settingsProvider.setThemeMode(AppThemeMode.system),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeOption(
+    BuildContext context,
+    String label,
+    IconData icon,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Colors.pinkAccent.withOpacity(0.3)
+                : Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? Colors.pinkAccent : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.pinkAccent : Colors.white70,
+                size: 24,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // Widget xây dựng một mục cài đặt có nút Switch (bật/tắt)
   Widget _buildSwitchItem(
       String title, bool currentValue, ValueChanged<bool> onChanged) {
@@ -239,22 +322,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
             color: Colors.white70, size: 16),
         onTap: onTap,
       ),
-    );
-  }
-
-  // Widget cho các nút "Change PIN" và "Change Password"
-  Widget _buildActionButton(BuildContext context,
-      {required String title, required VoidCallback onPressed}) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white.withOpacity(0.15), // Màu xám tối
-        foregroundColor: Colors.white,
-        minimumSize: const Size(double.infinity, 55),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-      ),
-      child: Text(title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
     );
   }
 }

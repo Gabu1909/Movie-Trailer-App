@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/movie.dart';
 import '../../providers/downloads_provider.dart';
 import '../../providers/favorites_provider.dart';
+import '../../utils/ui_helpers.dart';
 import '../../providers/watchlist_provider.dart';
 import 'package:flutter/services.dart'; // For SystemSound
 import '../../widgets/cards/movie_card.dart';
@@ -15,13 +16,11 @@ enum SortOption { byName, byDateAdded }
 
 class MyListSeeAllScreen extends StatefulWidget {
   final String title;
-  final List<Movie> movies;
   final MyListType listType;
 
   const MyListSeeAllScreen({
     super.key,
     required this.title,
-    required this.movies,
     required this.listType,
   });
 
@@ -30,29 +29,30 @@ class MyListSeeAllScreen extends StatefulWidget {
 }
 
 class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
-  late List<Movie> _sortedMovies;
   SortOption _currentSortOption = SortOption.byDateAdded;
 
-  @override
-  void initState() {
-    super.initState();
-    _sortedMovies = List.from(widget.movies);
-    _sortMovies();
+  List<Movie> _getSortedMovies(List<Movie> movies) {
+    final sortedList = List<Movie>.from(movies);
+    switch (_currentSortOption) {
+      case SortOption.byName:
+        sortedList.sort((a, b) => a.title.compareTo(b.title));
+        break;
+      case SortOption.byDateAdded:
+        // Reverse to show newest first
+        return sortedList.reversed.toList();
+    }
+    return sortedList;
   }
 
-  void _sortMovies() {
-    setState(() {
-      switch (_currentSortOption) {
-        case SortOption.byName:
-          _sortedMovies.sort((a, b) => a.title.compareTo(b.title));
-          break;
-        case SortOption.byDateAdded:
-          // Since we don't have a date, we reverse the list to show newest first.
-          // This assumes the original list from the provider is in insertion order.
-          _sortedMovies = List<Movie>.from(widget.movies.reversed);
-          break;
-      }
-    });
+  List<Movie> _getCurrentMovies(BuildContext context) {
+    switch (widget.listType) {
+      case MyListType.downloads:
+        return context.watch<DownloadsProvider>().downloadedMovies;
+      case MyListType.favorites:
+        return context.watch<FavoritesProvider>().favorites;
+      case MyListType.watchlist:
+        return context.watch<WatchlistProvider>().watchlistMovies;
+    }
   }
 
   // Hàm hiển thị hộp thoại xác nhận xóa (tái sử dụng từ FavoritesScreen)
@@ -109,22 +109,7 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
               HapticFeedback.mediumImpact();
               onConfirm(); // Thực hiện hành động xóa, âm thanh sẽ được gọi trong onConfirm
               SystemSound.play(SystemSoundType.click); // Phát âm thanh "ting"
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(children: [
-                    const Icon(Icons.check_circle_outline, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text(successMessage,
-                            style: const TextStyle(color: Colors.black))),
-                  ]),
-                  backgroundColor: Colors.white,
-                  behavior: SnackBarBehavior.floating, // Nổi lên trên
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  margin: const EdgeInsets.all(16),
-                ),
-              );
+              UIHelpers.showSuccessSnackBar(context, successMessage);
             },
           ),
         ],
@@ -134,6 +119,9 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentMovies = _getCurrentMovies(context);
+    final sortedMovies = _getSortedMovies(currentMovies);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -142,7 +130,6 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
             onSelected: (SortOption result) {
               setState(() {
                 _currentSortOption = result;
-                _sortMovies();
               });
             },
             icon: const Icon(Icons.sort),
@@ -159,7 +146,7 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
           ),
         ],
       ),
-      body: _sortedMovies.isEmpty
+      body: sortedMovies.isEmpty
           ? Center(
               child: Text(
                 'No movies to display.',
@@ -174,9 +161,9 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
-              itemCount: _sortedMovies.length,
+              itemCount: sortedMovies.length,
               itemBuilder: (context, index) {
-                final movie = _sortedMovies[index];
+                final movie = sortedMovies[index];
                 return _buildMovieItem(context, movie);
               },
             ),
@@ -227,9 +214,7 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
                   onConfirm: () async {
                     SystemSound.play(SystemSoundType.click);
                     await provider.removeDownload(movie);
-                    setState(() {
-                      _sortedMovies.removeWhere((m) => m.id == movie.id);
-                    });
+                    // Provider tự động update UI qua notifyListeners
                   },
                   successMessage: '${movie.title} removed from downloads.',
                 );
@@ -251,9 +236,7 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
               onConfirm: () async {
                 SystemSound.play(SystemSoundType.click);
                 await provider.toggleFavorite(movie);
-                setState(() {
-                  _sortedMovies.removeWhere((m) => m.id == movie.id);
-                });
+                // Provider tự động update UI qua notifyListeners
               },
               successMessage: '${movie.title} removed from favorites.',
             );
@@ -273,9 +256,7 @@ class _MyListSeeAllScreenState extends State<MyListSeeAllScreen> {
               onConfirm: () async {
                 SystemSound.play(SystemSoundType.click);
                 await provider.toggleWatchlist(movie);
-                setState(() {
-                  _sortedMovies.removeWhere((m) => m.id == movie.id);
-                });
+                // Provider tự động update UI qua notifyListeners
               },
               successMessage: '${movie.title} removed from your watchlist.',
             );

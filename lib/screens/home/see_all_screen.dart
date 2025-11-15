@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../api/api_constants.dart';
 import '../../models/movie.dart';
-import '../../models/cast.dart'; // Thêm import này
-import '../../widgets/cards/movie_card.dart';
+import '../../models/cast.dart';
+import '../../widgets/common/movie_grid_view.dart';
 
 class SeeAllScreen extends StatelessWidget {
   final String title;
@@ -30,22 +30,8 @@ class SeeAllScreen extends StatelessWidget {
 
   Widget _buildGrid() {
     if (movies != null && movies!.isNotEmpty) {
-      // Hiển thị Grid cho phim
-      return GridView.builder(
-        padding: const EdgeInsets.all(16.0), // Tăng padding tổng thể
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          // Đã cập nhật
-          crossAxisCount: 2, // Giữ 2 cột
-          childAspectRatio: 140 / 200, // Tỷ lệ của MovieCard (width/height)
-          crossAxisSpacing: 16, // Tăng khoảng cách ngang
-          mainAxisSpacing: 16, // Tăng khoảng cách dọc
-        ),
-        itemCount: movies!.length,
-        itemBuilder: (context, index) {
-          final movie = movies![index];
-          return MovieCard(movie: movie);
-        },
-      );
+      // Use reusable MovieGridView widget
+      return MovieGridView(movies: movies!);
     } else if (cast != null && cast!.isNotEmpty) {
       // Hiển thị Grid cho diễn viên
       return GridView.builder(

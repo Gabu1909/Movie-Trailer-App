@@ -78,6 +78,8 @@ class DownloadsProvider with ChangeNotifier {
     final downloadedData =
         await _dbHelper.getDownloadedMoviesWithPaths(_currentUserId!);
 
+    print('📊 Loading downloads: ${downloadedData.length} items from DB');
+
     _downloadedMovies.clear();
     _filePaths.clear();
     _statuses.clear();
@@ -112,11 +114,18 @@ class DownloadsProvider with ChangeNotifier {
         }
       }
 
-      _downloadedMovies.add(finalMovie);
+      // Kiểm tra duplicate trước khi add
+      if (!_downloadedMovies.any((m) => m.id == finalMovie.id)) {
+        _downloadedMovies.add(finalMovie);
+      } else {
+        print(
+            '⚠️ Duplicate movie detected in DB: ${finalMovie.id} - ${finalMovie.title}');
+      }
       _filePaths[finalMovie.id] = data['filePath'] as String;
       _statuses[finalMovie.id] = DownloadStatus.Downloaded;
     }
 
+    print('✅ Loaded ${_downloadedMovies.length} unique downloaded movies');
     notifyListeners();
   }
 

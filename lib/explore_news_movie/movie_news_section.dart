@@ -1,9 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart'; // Import thư viện
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import '../screens/explore_news/news_detail_screen.dart'; // Import màn hình chi tiết
-import '../utils/image_helper.dart'; // Import helper
+import '../screens/explore_news/news_detail_screen.dart';
+import '../utils/ui_helpers.dart';
 
 class MovieNewsSection extends StatelessWidget {
   final List<dynamic> articles;
@@ -15,12 +14,13 @@ class MovieNewsSection extends StatelessWidget {
     // Thay thế ListView.builder bằng SliverList
     return SliverList.builder(
       itemCount: articles.length, // Cung cấp số lượng item
-      itemBuilder: (context, index) { // itemBuilder tương tự như ListView
+      itemBuilder: (context, index) {
+        // itemBuilder tương tự như ListView
         final article = articles[index];
         final title = article['title'] ?? 'Không có tiêu đề';
         final source = article['source']['name'] ?? 'Không rõ nguồn';
         final imageUrl = article['urlToImage'];
-        final proxiedUrl = ImageHelper.getProxiedImageUrl(imageUrl);
+        final proxiedUrl = UIHelpers.getProxiedImageUrl(imageUrl);
 
         // In ra URL để kiểm tra
         print('📸 Article #$index: $imageUrl');
@@ -44,24 +44,23 @@ class MovieNewsSection extends StatelessWidget {
             // Cập nhật onTap để điều hướng đến NewsDetailScreen
             onTap: () async {
               // 1. Kiểm tra kết nối mạng
-              final connectivityResult = await (Connectivity().checkConnectivity());
+              final connectivityResult =
+                  await (Connectivity().checkConnectivity());
               if (connectivityResult == ConnectivityResult.none) {
                 // 2. Nếu không có mạng, hiển thị SnackBar
                 // Dùng 'if (!context.mounted) return;' để đảm bảo an toàn khi dùng context trong hàm async
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Không có kết nối internet. Vui lòng thử lại!'),
-                    backgroundColor: Colors.red,
-                  ),
+                UIHelpers.showErrorSnackBar(
+                  context,
+                  'Không có kết nối internet. Vui lòng thử lại!',
                 );
               } else {
                 // 3. Nếu có mạng, điều hướng đến màn hình chi tiết
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => NewsDetailScreen(
-                        articleUrl: url, articleTitle: title),
+                    builder: (context) =>
+                        NewsDetailScreen(articleUrl: url, articleTitle: title),
                   ),
                 );
               }
@@ -96,8 +95,8 @@ class MovieNewsSection extends StatelessWidget {
                                 color: Colors.grey, size: 40),
                             SizedBox(height: 8),
                             Text('No Image Found',
-                                style:
-                                    TextStyle(color: Colors.grey, fontSize: 12)),
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
                           ],
                         ),
                       );
