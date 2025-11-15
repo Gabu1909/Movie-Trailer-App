@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import '../models/app_notification.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -156,12 +157,15 @@ class DownloadsProvider with ChangeNotifier {
       _errorMessages.remove(movie.id); // Xóa lỗi cũ nếu có
 
       // Gửi thông báo khi tải xong
-      _notificationProvider.addNotification(
-        title: 'Download Complete',
-        message: '"${movie.title}" has been downloaded successfully.',
-        imageUrl: movie.posterPath, // Chỉ cần truyền posterPath
-        route: '/movie/${movie.id}',
+      final notification = AppNotification(
+        id: 'download_complete_${movie.id}',
+        title: 'Tải thành công!',
+        body: 'Phim "${movie.title}" đã được tải xong và sẵn sàng để xem.',
+        timestamp: DateTime.now(),
+        type: NotificationType.download,
+        movieId: movie.id,
       );
+      _notificationProvider.addNotification(notification);
 
       // Hiển thị thông báo cục bộ
       await LocalNotificationService.showNotification(

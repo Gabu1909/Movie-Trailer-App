@@ -154,13 +154,18 @@ class _HomeScreenState extends State<HomeScreen>
                     _scaffoldKey.currentState?.openDrawer();
                   }),
                   _buildTrendingSection(context, provider),
-                  if (provider.upcomingMovies.isNotEmpty)
-                    MovieList(
-                        title: 'Coming Soon', movies: provider.upcomingMovies),
+                  // Thay thế "Coming Soon" bằng "Top Rated"
                   if (provider.topRatedMovies.isNotEmpty)
                     MovieList(
-                        title: 'Best for Kids',
-                        movies: provider.topRatedMovies),
+                        title: 'Top Rated', movies: provider.topRatedMovies),
+                  // Giữ nguyên "Best for Kids" và sửa lại để dùng _kidsMovies
+                  if (provider.kidsMovies.isNotEmpty)
+                    MovieList(title: 'Best for Kids', movies: provider.kidsMovies),
+                  // Thêm phần "Recommendations"
+                  if (provider.weeklyTrendingMovies.isNotEmpty)
+                    MovieList(
+                        title: 'Recommendations',
+                        movies: provider.weeklyTrendingMovies),
                   const SizedBox(height: 20),
                 ],
               ),

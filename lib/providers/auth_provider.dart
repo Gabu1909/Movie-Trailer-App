@@ -1,14 +1,29 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart'; // Chúng ta sẽ tạo model này
 
 class AuthProvider with ChangeNotifier {
   // Dùng Map để lưu trữ người dùng, mô phỏng database
-  final Map<String, User> _users = {};
+  Map<String, User> _users = {};
   User? _currentUser;
+  static const String _usersKey = 'app_users';
 
   User? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
+
+  AuthProvider() {
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? usersString = prefs.getString(_usersKey);
+    if (usersString != null) {
+      _users = User.mapFromJson(json.decode(usersString));
+    }
+  }
 
   Future<void> login(String email, String password) async {
     // Mô phỏng độ trễ mạng
@@ -42,12 +57,21 @@ class AuthProvider with ChangeNotifier {
     );
 
     _users[email] = newUser;
-    _currentUser = newUser;
+    // Sau khi đăng ký, chúng ta không tự động đăng nhập
+    // mà yêu cầu người dùng đến màn hình đăng nhập.
+    // _currentUser = newUser;
+    await _saveUsers();
     notifyListeners();
+  }
+
+  Future<void> _saveUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_usersKey, json.encode(User.mapToJson(_users)));
   }
 
   Future<void> logout() async {
     _currentUser = null;
+    // Không cần xóa user khỏi _users khi đăng xuất
     notifyListeners();
   }
 

@@ -6,3 +6,9 @@ class ApiConstants {
   static const String imageBaseUrlOriginal =
       "https://image.tmdb.org/t/p/original";
 }
+
+class ApiNewsConstants {
+  static const String apiKey = "4e2ad4c7b0904783ad6c7eaaed9fe74e";
+  static const String baseUrl = "https://newsapi.org/v2";
+}
+

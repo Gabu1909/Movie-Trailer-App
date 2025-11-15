@@ -18,11 +18,14 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/notification_setting_screen.dart';
 import '../screens/shared/placeholder_screen.dart';
+import '../screens/notifications/notification_list_screen.dart';
 import '../screens/profile/help_center_screen.dart';
 import '../screens/shared/login_screen.dart';
 import '../screens/shared/signup_screen.dart';
 import '../screens/shared/splash_screen.dart';
-import '../screens/profile/security_screen.dart';
+import '../screens/profile/security_screen.dart'; 
+import '../screens/coming_soon/coming_soon_screen.dart'; // Đường dẫn đúng
+import '../screens/explore_news/explore_screen.dart';
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -79,6 +82,10 @@ class AppRouter {
               builder: (context, state) => const HomeScreen(),
             ),
             GoRoute(
+              path: '/explore',
+              builder: (context, state) => const ExploreScreen(),
+            ),
+            GoRoute(
               path: '/search',
               builder: (context, state) => const SearchScreen(),
             ),
@@ -87,20 +94,13 @@ class AppRouter {
               builder: (context, state) => const FavoritesScreen(),
             ),
             GoRoute(
+              path: '/coming-soon',
+              builder: (context, state) => const ComingSoonScreen(),
+            ),
+            GoRoute(
               path: '/profile',
               builder: (context, state) => const ProfileScreen(),
             ),
-            GoRoute(
-              path: '/sports',
-              builder: (context, state) =>
-                  const PlaceholderScreen(title: 'Sports'),
-            ),
-            GoRoute(
-              path: '/live',
-              builder: (context, state) =>
-                  const PlaceholderScreen(title: 'Live'),
-            ),
-
             // ========== DETAIL SCREENS ==========
             GoRoute(
               path: '/movie/:id',
@@ -161,7 +161,7 @@ class AppRouter {
               builder: (context, state) => const EditProfileScreen(),
             ),
             GoRoute(
-              path: '/notifications',
+              path: '/setting',
               builder: (context, state) =>
                   const NotificationScreen(), // Sửa ở đây nếu NotificationScreen là StatefulWidget
             ),
@@ -172,6 +172,10 @@ class AppRouter {
             GoRoute(
               path: '/security',
               builder: (context, state) => const SecurityScreen(),
+            ),
+            GoRoute(
+              path: '/notifications',
+              builder: (context, state) => const NotificationListScreen(),
             ),
           ],
         ), // Đóng ShellRoute

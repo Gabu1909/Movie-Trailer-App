@@ -11,8 +11,8 @@ class MainWrapper extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();
     if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/sports')) return 1;
-    if (location.startsWith('/live')) return 2;
+    if (location.startsWith('/explore')) return 1; 
+    if (location.startsWith('/coming-soon')) return 2;
     if (location.startsWith('/my-list')) return 3;
     if (location.startsWith('/profile')) return 4;
     return 0;
@@ -24,10 +24,10 @@ class MainWrapper extends StatelessWidget {
         context.go('/home');
         break;
       case 1:
-        context.go('/sports');
+        context.go('/explore');
         break;
       case 2:
-        context.go('/live');
+        context.go('/coming-soon');
         break;
       case 3:
         context.go('/my-list');
@@ -63,10 +63,9 @@ class MainWrapper extends StatelessWidget {
           onTap: (index) => _onItemTapped(index, context),
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+            BottomNavigationBarItem(icon: Icon(Icons.explore), label: "Explore"),
             BottomNavigationBarItem(
-                icon: Icon(Icons.sports_esports), label: "Explore"),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.live_tv), label: "Comming Soon"),
+                icon: Icon(Icons.new_releases), label: "Coming Soon"),
             BottomNavigationBarItem(icon: Icon(Icons.list), label: "My List"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
           ],

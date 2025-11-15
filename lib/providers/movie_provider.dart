@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:async'; // Import for Completer
 import '../api/api_service.dart';
+import '../models/actor_detail.dart';
 import '../models/genre.dart';
 import '../models/movie.dart';
+import '../models/cast.dart';
 import '../utils/filter_helper.dart';
+import 'notification_provider.dart';
 
 class MovieProvider with ChangeNotifier {
-  final ApiService _apiService = ApiService();
+  final ApiService _apiService;
+  final NotificationProvider? _notificationProvider;
 
   List<Movie> _popularMovies = []; // Cho "Trending"
   List<Movie> _trendingMovies =
@@ -14,7 +18,10 @@ class MovieProvider with ChangeNotifier {
   List<Movie> _upcomingMovies = []; // Cho "Coming Soon"
   List<Movie> _kidsMovies = []; // Cho "Best for Kids"
   List<Movie> _topRatedMovies = []; // Dự phòng
+  List<Movie> _nowPlayingMovies = []; // Phim mới phát hành
+  List<Movie> _weeklyTrendingMovies = []; // Phim hot nhất tuần
   List<Movie> _searchedMovies = [];
+  bool _isDisposed = false; // Cờ để kiểm tra trạng thái disposed
   List<Genre> _genres = [];
 
   // Bộ đệm để lưu trữ phim theo genreId
@@ -23,6 +30,12 @@ class MovieProvider with ChangeNotifier {
   bool _isLoading = true;
   bool _isTrendingLoading = false;
   bool _isFilterLoading = false;
+  // Thêm các biến cho việc tải thêm phim "sắp ra mắt"
+  Timer? _trendingRefreshTimer;
+  bool _isFetchingMoreUpcoming = false;
+  int _upcomingPage = 1;
+  bool _hasMoreUpcoming = true;
+
   int _selectedGenreIndex = 0; // Lưu trạng thái tab đã chọn
 
   // Drawer filters state
@@ -34,11 +47,15 @@ class MovieProvider with ChangeNotifier {
   List<Movie> get upcomingMovies => _upcomingMovies;
   List<Movie> get kidsMovies => _kidsMovies;
   List<Movie> get topRatedMovies => _topRatedMovies;
+  List<Movie> get nowPlayingMovies => _nowPlayingMovies;
+  List<Movie> get weeklyTrendingMovies => _weeklyTrendingMovies;
   List<Movie> get searchedMovies => _searchedMovies;
   List<Genre> get genres => _genres;
   bool get isLoading => _isLoading;
   bool get isTrendingLoading => _isTrendingLoading;
   bool get isFilterLoading => _isFilterLoading;
+  bool get isFetchingMoreUpcoming => _isFetchingMoreUpcoming;
+
   int get selectedGenreIndex => _selectedGenreIndex;
   List<int> get selectedDrawerGenreIds => _selectedDrawerGenreIds;
   List<String> get selectedCountries => _selectedCountries;
@@ -47,37 +64,65 @@ class MovieProvider with ChangeNotifier {
   final Completer<void> _initializationCompleter = Completer<void>();
   Future<void> get initializationComplete => _initializationCompleter.future;
 
-  MovieProvider() {
+  MovieProvider(this._apiService, [this._notificationProvider]) {
     fetchAllData();
+    _startTrendingTimer(); // Bắt đầu bộ đếm thời gian tự động làm mới
   }
 
   Future<void> fetchAllData() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
     // Thêm dòng này để kích hoạt shimmer cho Trending section khi refresh
     _isTrendingLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     // Xóa bộ đệm phim theo thể loại khi làm mới toàn bộ dữ liệu
     _cachedGenreMovies.clear();
 
     try {
-      await Future.wait([
+      final results = await Future.wait([
         _apiService.getPopularMovies(),
         _apiService.getUpcomingMovies(),
         _apiService.getMoviesByGenre('10751'), // 10751 = Family
         _apiService.getGenres(),
         _apiService.getTopRatedMovies(),
-      ]).then((results) {
-        _popularMovies = results[0] as List<Movie>;
-        _trendingMovies = _popularMovies; // Ban đầu, trending = popular
-        _upcomingMovies = results[1] as List<Movie>;
-        _kidsMovies = results[2] as List<Movie>;
-        _genres = results[3] as List<Genre>;
-        _topRatedMovies = results[4] as List<Movie>;
-        // Lưu danh sách phim "Popular" vào bộ đệm với key là 0
-        _cachedGenreMovies[0] = _popularMovies;
+        _apiService.getNowPlayingMovies(),
+        _apiService.getTrendingMoviesOfWeek(), // Thêm lại API call
+      ]);
+      _popularMovies = results[0] as List<Movie>;
+      _trendingMovies = _popularMovies; // Ban đầu, trending = popular
+      
+      // Sắp xếp phim sắp ra mắt theo ngày phát hành giảm dần (mới nhất lên đầu)
+      final upcoming = results[1] as List<Movie>;
+      upcoming.sort((a, b) {
+        if (a.releaseDate == null) return 1; // Phim không có ngày ra mắt xuống cuối
+        if (b.releaseDate == null) return -1;
+        return b.releaseDate!.compareTo(a.releaseDate!); // So sánh ngược
       });
+      _upcomingMovies = upcoming;
+      _kidsMovies = results[2] as List<Movie>;
+      _genres = results[3] as List<Genre>;
+      _topRatedMovies = results[4] as List<Movie>;
+      _nowPlayingMovies = results[5] as List<Movie>;
+      _weeklyTrendingMovies = results[6] as List<Movie>; // Kích hoạt lại
+
+      // Lưu danh sách phim "Popular" vào bộ đệm với key là 0
+      _cachedGenreMovies[0] = _popularMovies;
+
+      // Tạo thông báo
+      if (_notificationProvider != null) {
+        _notificationProvider!.addComingSoonNotifications(_upcomingMovies);
+        _notificationProvider!.addTrendingNotifications(_weeklyTrendingMovies); // Kích hoạt lại
+        _notificationProvider!.addNowPlayingNotifications(_nowPlayingMovies);
+        // Ví dụ thêm thông báo hệ thống
+        _notificationProvider!.addSystemNotification(
+            id: 'system_update_01',
+            title: '🔔 Thông báo hệ thống',
+            body: 'Giao diện đã được làm mới với dữ liệu mới nhất!');
+      }
+
+      // Bắt đầu xử lý thông báo diễn viên (chạy ngầm không làm chậm UI)
+      _createActorNotifications();
     } catch (e) {
       // Xử lý lỗi (ví dụ: in ra console)
       debugPrint('Error fetching data: $e');
@@ -89,13 +134,44 @@ class MovieProvider with ChangeNotifier {
 
     _isLoading = false;
     _isTrendingLoading = false; // Tắt shimmer cho Trending khi có dữ liệu
-    notifyListeners();
+    _safeNotifyListeners();
+  }
+
+  // Hàm mới để xử lý việc tạo thông báo cho diễn viên
+  Future<void> _createActorNotifications() async {
+    if (_notificationProvider == null) return;
+
+    try {
+      final popularActors = await _apiService.getPopularActors();
+      // Chỉ xử lý cho 3 diễn viên hot nhất để tránh quá nhiều API call
+      for (final actor in popularActors.take(3)) {
+        final ActorDetail actorDetail = await _apiService.getActorDetails(actor.id);
+        
+        // Lấy danh sách phim của diễn viên và sắp xếp theo ngày phát hành
+        final List<Movie> movieCredits = actorDetail.movieCredits;
+        if (movieCredits == null || movieCredits.isEmpty) continue;
+
+        movieCredits.sort((a, b) {
+          final dateA = a.releaseDate;
+          final dateB = b.releaseDate;
+          if (dateA == null) return 1;
+          if (dateB == null) return -1;
+          return dateB.compareTo(dateA); // Sắp xếp mới nhất lên đầu
+        });
+
+        // Lấy phim mới nhất và tạo thông báo
+        final latestMovie = movieCredits.first;
+        _notificationProvider!.addActorInNewMovieNotification(actor, latestMovie);
+      }
+    } catch (e) {
+      debugPrint('Error creating actor notifications: $e');
+    }
   }
 
   Future<void> searchMovies(String query) async {
     _isLoading = true;
     _searchedMovies = [];
-    notifyListeners();
+    _safeNotifyListeners();
     if (query.isNotEmpty) {
       try {
         _searchedMovies = await _apiService.searchMovies(query);
@@ -104,13 +180,13 @@ class MovieProvider with ChangeNotifier {
       }
     }
     _isLoading = false;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   // Hàm mới để cập nhật phim cho carousel "Trending"
   Future<void> fetchTrendingMoviesByGenre(int? genreId) async {
     _isTrendingLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final id = genreId ?? 0; // Sử dụng 0 nếu genreId là null
@@ -129,7 +205,7 @@ class MovieProvider with ChangeNotifier {
       debugPrint('Error fetching trending movies by genre: $e');
     }
     _isTrendingLoading = false;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   // Hàm mới để chọn thể loại và fetch dữ liệu
@@ -139,6 +215,56 @@ class MovieProvider with ChangeNotifier {
     await fetchTrendingMoviesByGenre(genreId);
   }
 
+  // Hàm mới để bắt đầu bộ đếm thời gian tự động làm mới
+  void _startTrendingTimer() {
+    // Hủy bỏ bất kỳ bộ đếm thời gian cũ nào nếu có
+    _trendingRefreshTimer?.cancel();
+
+    // Thiết lập bộ đếm thời gian mới, chạy mỗi 15 phút
+    _trendingRefreshTimer =
+        Timer.periodic(const Duration(minutes: 15), (timer) {
+      debugPrint('⏰ Tự động làm mới danh sách phim thịnh hành...');
+
+      // Lấy genreId của tab đang được chọn
+      int? genreId;
+      if (_selectedGenreIndex > 0 && _genres.isNotEmpty) {
+        genreId = _genres[_selectedGenreIndex - 1].id;
+      }
+      // Gọi hàm fetch lại dữ liệu cho tab đó
+      fetchTrendingMoviesByGenre(genreId);
+    });
+  }
+  // Hàm mới để tải thêm phim "sắp ra mắt"
+  Future<void> fetchMoreUpcomingMovies() async {
+    if (_isFetchingMoreUpcoming || !_hasMoreUpcoming) return;
+
+    _isFetchingMoreUpcoming = true;
+    _safeNotifyListeners();
+
+    try {
+      _upcomingPage++;
+      final moreMovies = await _apiService.getUpcomingMovies(page: _upcomingPage);
+      if (moreMovies.isNotEmpty) {
+        // Sắp xếp danh sách phim mới tải về trước khi thêm vào
+        moreMovies.sort((a, b) {
+          if (a.releaseDate == null) return 1;
+          if (b.releaseDate == null) return -1;
+          return b.releaseDate!.compareTo(a.releaseDate!);
+        });
+        // Thêm danh sách đã sắp xếp vào cuối danh sách hiện tại
+        _upcomingMovies.addAll(moreMovies); 
+      } else {
+        _hasMoreUpcoming = false; // Không còn phim để tải
+      }
+    } catch (e) {
+      debugPrint('Error fetching more upcoming movies: $e');
+      _upcomingPage--; // Quay lại trang trước nếu có lỗi
+    } finally {
+      _isFetchingMoreUpcoming = false;
+      _safeNotifyListeners();
+    }
+  }
+
   // Drawer filter methods
   void toggleDrawerGenre(int genreId) {
     if (_selectedDrawerGenreIds.contains(genreId)) {
@@ -146,7 +272,7 @@ class MovieProvider with ChangeNotifier {
     } else {
       _selectedDrawerGenreIds.add(genreId);
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void toggleCountry(String country) {
@@ -155,7 +281,7 @@ class MovieProvider with ChangeNotifier {
     } else {
       _selectedCountries.add(country);
     }
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   bool isGenreSelected(int genreId) {
@@ -169,7 +295,7 @@ class MovieProvider with ChangeNotifier {
   void clearDrawerGenres() {
     _selectedDrawerGenreIds.clear();
     _selectedCountries.clear();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   String getSelectedGenresText() {
@@ -195,7 +321,7 @@ class MovieProvider with ChangeNotifier {
 
   Future<List<Movie>> getMoviesByFilter() async {
     _isFilterLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final genreIds = _selectedDrawerGenreIds.join(',');
@@ -203,18 +329,18 @@ class MovieProvider with ChangeNotifier {
 
       if (genreIds.isEmpty && countryCodes.isEmpty) {
         _isFilterLoading = false;
-        notifyListeners();
+        _safeNotifyListeners();
         return _popularMovies;
       }
 
       final movies = await _apiService.discoverMovies(genreIds, countryCodes);
 
       _isFilterLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return movies;
     } catch (e) {
       _isFilterLoading = false;
-      notifyListeners();
+      _safeNotifyListeners();
       return [];
     }
   }
@@ -225,6 +351,21 @@ class MovieProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching TV shows: $e');
       return [];
+    }
+  }
+
+  // Ghi đè phương thức dispose để cập nhật cờ
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _trendingRefreshTimer?.cancel(); // Hủy bộ đếm thời gian khi provider bị hủy
+    super.dispose();
+  }
+
+  // Hàm tiện ích để gọi notifyListeners một cách an toàn
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      notifyListeners();
     }
   }
 }

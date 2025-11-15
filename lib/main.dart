@@ -12,6 +12,7 @@ import 'providers/actor_detail_provider.dart'; // Import ActorDetailProvider
 import 'providers/auth_provider.dart'; // Import AuthProvider
 import 'providers/search_provider.dart'; // Import SearchProvider
 import 'router/app_router.dart'; // Import AppRouter
+import 'api/api_service.dart'; // Import ApiService
 import 'services/local_notification_service.dart'; // Import LocalNotificationService
 import 'theme/constants.dart'; // Import theme constants
 
@@ -34,22 +35,29 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // 1. Các provider không có dependency
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // Các provider không phụ thuộc
-        ChangeNotifierProvider(create: (_) => MovieProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
         ChangeNotifierProvider(create: (_) => WatchlistProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => BottomNavVisibilityProvider()),
         ChangeNotifierProvider(create: (_) => ActorDetailProvider()),
         ChangeNotifierProvider(create: (_) => MovieDetailProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ChangeNotifierProvider(
-            create: (_) => SearchProvider()), // Thêm SearchProvider
-        // DownloadsProvider phụ thuộc vào NotificationProvider
+        ChangeNotifierProvider(create: (_) => SearchProvider()),
+
+        // 2. Các provider có dependency, sử dụng ChangeNotifierProxyProvider
+        // MovieProvider phụ thuộc vào NotificationProvider
+        ChangeNotifierProxyProvider<NotificationProvider, MovieProvider>(
+          create: (context) => MovieProvider(ApiService(), null),
+          update: (context, notificationProvider, movieProvider) =>
+              MovieProvider(ApiService(), notificationProvider),
+        ),
+
+        // DownloadsProvider cũng phụ thuộc vào NotificationProvider
         ChangeNotifierProxyProvider<NotificationProvider, DownloadsProvider>(
           create: (context) => DownloadsProvider(
-              notificationProvider: context.read<NotificationProvider>()),
+              notificationProvider: Provider.of<NotificationProvider>(context, listen: false)),
           update: (context, notificationProvider, previous) =>
               previous!..updateDependencies(notificationProvider),
         ),

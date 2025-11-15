@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -41,6 +42,11 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (!mounted) return;
+
+      // Lưu email và mật khẩu vào SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_email', _emailController.text);
+      await prefs.setString('saved_password', _passwordController.text);
 
       // Hiển thị hộp thoại đăng ký thành công
       showDialog(

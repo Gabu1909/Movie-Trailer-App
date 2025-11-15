@@ -21,6 +21,8 @@ dependencies:
   audioplayers: ^6.0.0
   sensors_plus: ^5.0.1
   image_picker: ^1.0.7
+  timeago: ^3.6.1
+  connectivity_plus: ^5.0.2
 
   # Network requests
   http: ^1.2.0

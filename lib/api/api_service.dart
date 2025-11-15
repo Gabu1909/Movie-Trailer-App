@@ -14,6 +14,11 @@ class ApiService {
         '${ApiConstants.baseUrl}/movie/now_playing?api_key=${ApiConstants.apiKey}');
   }
 
+  Future<List<Movie>> getTrendingMoviesOfWeek() async {
+    return _getMovies(
+        '${ApiConstants.baseUrl}/trending/movie/week?api_key=${ApiConstants.apiKey}');
+  }
+
   Future<List<Movie>> getPopularMovies() async {
     // Dùng Popular cho mục "Trending"
     return _getMovies(
@@ -25,9 +30,9 @@ class ApiService {
         '${ApiConstants.baseUrl}/movie/top_rated?api_key=${ApiConstants.apiKey}');
   }
 
-  Future<List<Movie>> getUpcomingMovies() async {
+  Future<List<Movie>> getUpcomingMovies({int page = 1}) async {
     return _getMovies(
-        '${ApiConstants.baseUrl}/movie/upcoming?api_key=${ApiConstants.apiKey}');
+        '${ApiConstants.baseUrl}/movie/upcoming?api_key=${ApiConstants.apiKey}&page=$page');
   }
 
   Future<List<Movie>> getMoviesByGenre(String genreId) async {
@@ -142,6 +147,22 @@ class ApiService {
       debugPrint('Error searching actors: $e');
       return [];
     }
+  }
+
+  // Lấy danh sách diễn viên nổi bật
+  Future<List<Cast>> getPopularActors() async {
+    try {
+      final response = await http.get(Uri.parse(
+          '${ApiConstants.baseUrl}/person/popular?api_key=${ApiConstants.apiKey}'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final results = data['results'] as List;
+        return results.map((json) => Cast.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetching popular actors: $e');
+    }
+    return [];
   }
 
   Future<Movie> getMovieDetail(int movieId) async {
