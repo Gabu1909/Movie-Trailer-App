@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import 'movie_card_placeholder.dart';
+import '../cards/movie_card_placeholder.dart';
 
 class MovieListPlaceholder extends StatelessWidget {
   const MovieListPlaceholder({super.key});

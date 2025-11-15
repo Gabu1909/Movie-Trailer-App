@@ -1,32 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  String _userName = 'Phung Tan Phat';
-  String _userEmail = 'phungtanphat@example.com';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserInfo();
-  }
-
-  Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString('profile_name') ?? 'Phung Tan Phat';
-      _userEmail =
-          prefs.getString('profile_email') ?? 'phungtanphat@example.com';
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const SizedBox(height: 20),
                     // Thông tin người dùng (Avatar, Tên, Email)
-                    _buildUserInfo(), // Cập nhật để sử dụng _userName và _userEmail
+                    _buildUserInfo(context),
                     const SizedBox(height: 30),
                     // Menu các tùy chọn
                     _buildProfileMenu(context),
@@ -81,7 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Nút quay lại
+          // Nút quay lại - navigate to home
           Align(
             alignment: Alignment.centerLeft,
             child: Container(
@@ -92,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new,
                     color: Colors.white70, size: 20),
-                onPressed: () => context.pop(),
+                onPressed: () => context.go('/'),
               ),
             ),
           ),
@@ -112,20 +91,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // Widget cho thông tin người dùng
-  Widget _buildUserInfo() {
+  Widget _buildUserInfo(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.currentUser;
+
     return Column(
       children: [
         // Ảnh đại diện
-        const CircleAvatar(
+        CircleAvatar(
           radius: 60,
-          backgroundImage:
-              NetworkImage('https://i.pravatar.cc/150?img=12'), // Ảnh mẫu
+          backgroundImage: user?.profileImageUrl != null
+              ? (user!.profileImageUrl!.startsWith('http')
+                  ? NetworkImage(user.profileImageUrl!)
+                  : FileImage(File(user.profileImageUrl!)) as ImageProvider)
+              : const NetworkImage('https://i.pravatar.cc/150?img=12'),
           backgroundColor: Colors.white24,
         ),
         const SizedBox(height: 16),
         // Tên người dùng
         Text(
-          _userName, // Sử dụng tên từ state
+          user?.name ?? 'Guest User',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -135,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 8),
         // Email
         Text(
-          _userEmail, // Sử dụng email từ state
+          user?.email ?? 'guest@example.com',
           style: TextStyle(
             color: Colors.white.withOpacity(0.7),
             fontSize: 16,
@@ -155,19 +140,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           _buildMenuItem(context,
-              icon: Icons.person_outline, // Translated from 'Chỉnh sửa hồ sơ'
+              icon: Icons.person_outline,
               text: 'Edit Profile', onTap: () async {
-            await context.push('/profile/edit');
-            _loadUserInfo(); // Tải lại thông tin sau khi quay lại từ màn hình chỉnh sửa
+            // Navigate to edit profile and wait for result
+            final result = await context.push('/profile/edit');
+            // Show success message if update was successful
+            if (result == true && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Icon(Icons.check_circle_outline, color: Colors.green),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Profile updated successfully!',
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.white,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: const EdgeInsets.all(16),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
           }),
           _buildMenuItem(context,
               icon: Icons.security_outlined,
               text: 'Security',
               onTap: () => context.push('/security')),
           _buildMenuItem(context,
-              icon: Icons.notifications_outlined,
+              icon: Icons.settings_outlined,
               text: 'Settings',
-              onTap: () => context.push('/setting')),
+              onTap: () => context.push('/settings')),
           _buildMenuItem(context,
               icon: Icons.list_alt_outlined,
               text: 'My List',
@@ -201,7 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Hiển thị hộp thoại xác nhận
         final bool? confirmLogout = await showDialog(
           context: context,
-          builder: (BuildContext context) {
+          builder: (BuildContext dialogContext) {
             return AlertDialog(
               backgroundColor: const Color(0xFF2B124C),
               title: const Text('Confirm Logout',
@@ -210,12 +221,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(color: Colors.white70)),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
                   child: const Text('Cancel',
                       style: TextStyle(color: Colors.white70)),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
                   child: const Text('Logout',
                       style: TextStyle(color: Colors.pinkAccent)),
                 ),
@@ -225,33 +236,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
 
         // Nếu người dùng xác nhận, thực hiện đăng xuất
-        if (confirmLogout == true && context.mounted) {
-          // Trong ứng dụng thực tế, bạn sẽ xóa token, xóa dữ liệu người dùng, v.v.
+        if (confirmLogout == true) {
+          if (!context.mounted) return;
 
-          // Xóa SharedPreferences khi đăng xuất
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('profile_name');
-          await prefs.remove('profile_email');
-          // Có thể dùng await prefs.clear() nếu muốn xóa tất cả
+          // Đăng xuất thông qua AuthProvider
+          await Provider.of<AuthProvider>(context, listen: false).logout();
 
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 8),
-                Text(
-                  'You have been logged out successfully.',
-                  style: TextStyle(color: Colors.black),
-                ),
-              ],
+          if (!context.mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text(
+                    'Logged out successfully!',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.white,
+              duration: Duration(seconds: 2),
             ),
-            backgroundColor: Colors.white,
-          ));
-          context.go('/home'); // Điều hướng về màn hình chính
+          );
+
+          // Delay nhỏ để hiển thị SnackBar
+          await Future.delayed(const Duration(milliseconds: 300));
+
+          if (!context.mounted) return;
+          context.go('/login');
         }
       },
       icon: const Icon(Icons.logout, color: Colors.white),
-      label: const Text('Logout', // Translated from 'Đăng xuất'
+      label: const Text('Logout',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.pinkAccent.withOpacity(0.8),

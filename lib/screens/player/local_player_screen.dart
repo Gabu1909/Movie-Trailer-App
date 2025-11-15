@@ -183,7 +183,7 @@ class _LocalPlayerScreenState extends State<LocalPlayerScreen> {
         ),
 
         // Hiển thị phụ đề nếu được bật
-        if (_areSubtitlesVisible && _controller.value.caption.text != null)
+        if (_areSubtitlesVisible && _controller.value.caption.text.isNotEmpty)
           Positioned(
             bottom: 80, // Đặt vị trí cho phụ đề
             left: 20,

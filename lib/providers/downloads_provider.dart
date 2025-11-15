@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../data/database_helper.dart';
 import '../models/movie.dart';
 import '../services/local_notification_service.dart';
+import '../api/api_service.dart'; // Import ApiService để fetch trailerKey
 import 'settings_provider.dart'; // Import SettingsProvider
 
 import 'notification_provider.dart'; // Import NotificationProvider
@@ -16,6 +17,7 @@ enum DownloadStatus { NotDownloaded, Downloading, Paused, Downloaded, Error }
 class DownloadsProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   late NotificationProvider _notificationProvider; // Thêm NotificationProvider
+  String? _currentUserId;
   List<Movie> _downloadedMovies = [];
   final Map<int, String> _filePaths = {};
   final Map<int, DownloadStatus> _statuses = {};
@@ -28,12 +30,26 @@ class DownloadsProvider with ChangeNotifier {
 
   DownloadsProvider({required NotificationProvider notificationProvider})
       : _notificationProvider = notificationProvider {
-    loadDownloadedMovies();
+    // Don't auto-load until userId is set
   }
 
   // Hàm để cập nhật dependency khi cần
   void updateDependencies(NotificationProvider notificationProvider) {
     _notificationProvider = notificationProvider;
+  }
+
+  void setUserId(String? userId) {
+    if (_currentUserId != userId) {
+      _currentUserId = userId;
+      if (userId != null) {
+        loadDownloadedMovies();
+      } else {
+        _downloadedMovies = [];
+        _filePaths.clear();
+        _statuses.clear();
+        notifyListeners();
+      }
+    }
   }
 
   @override
@@ -50,8 +66,17 @@ class DownloadsProvider with ChangeNotifier {
   }
 
   Future<void> loadDownloadedMovies() async {
+    if (_currentUserId == null) {
+      _downloadedMovies = [];
+      _filePaths.clear();
+      _statuses.clear();
+      notifyListeners();
+      return;
+    }
+
     // Tối ưu hóa: Lấy cả phim và đường dẫn file trong một truy vấn
-    final downloadedData = await _dbHelper.getDownloadedMoviesWithPaths();
+    final downloadedData =
+        await _dbHelper.getDownloadedMoviesWithPaths(_currentUserId!);
 
     _downloadedMovies.clear();
     _filePaths.clear();
@@ -59,9 +84,37 @@ class DownloadsProvider with ChangeNotifier {
 
     for (var data in downloadedData) {
       final movie = Movie.fromMap(data);
-      _downloadedMovies.add(movie);
-      _filePaths[movie.id] = data['filePath'] as String;
-      _statuses[movie.id] = DownloadStatus.Downloaded;
+
+      // IMPORTANT: Nếu trailerKey null (movies cũ), fetch từ API
+      Movie finalMovie = movie;
+      if (movie.trailerKey == null || movie.trailerKey!.isEmpty) {
+        print(
+            '⚠️ Movie ${movie.id} (${movie.title}) missing trailerKey, fetching from API...');
+        try {
+          final apiService = ApiService();
+          final movieDetail = await apiService.getMovieDetail(movie.id);
+
+          if (movieDetail.trailerKey != null &&
+              movieDetail.trailerKey!.isNotEmpty) {
+            print('✅ Found trailerKey: ${movieDetail.trailerKey}');
+            // Update movie với trailerKey mới
+            finalMovie = movie.copyWith(trailerKey: movieDetail.trailerKey);
+
+            // Lưu lại vào database
+            if (_currentUserId != null) {
+              await _dbHelper.saveMovie(finalMovie, _currentUserId!);
+            }
+          } else {
+            print('⚠️ No trailerKey found in API response');
+          }
+        } catch (e) {
+          print('❌ Failed to fetch trailerKey for movie ${movie.id}: $e');
+        }
+      }
+
+      _downloadedMovies.add(finalMovie);
+      _filePaths[finalMovie.id] = data['filePath'] as String;
+      _statuses[finalMovie.id] = DownloadStatus.Downloaded;
     }
 
     notifyListeners();
@@ -148,19 +201,26 @@ class DownloadsProvider with ChangeNotifier {
       );
 
       // Save to DB after download completes
-      await _dbHelper.saveMovie(movie);
-      await _dbHelper.addDownload(movie.id, filePath);
+      if (_currentUserId != null) {
+        await _dbHelper.saveMovie(movie, _currentUserId!);
+        await _dbHelper.addDownload(movie.id, filePath, _currentUserId!);
+      }
 
       _statuses[movie.id] = DownloadStatus.Downloaded;
       _filePaths[movie.id] = filePath;
-      _downloadedMovies.add(movie);
+
+      // Kiểm tra xem movie đã có trong list chưa trước khi add
+      if (!_downloadedMovies.any((m) => m.id == movie.id)) {
+        _downloadedMovies.add(movie);
+      }
       _errorMessages.remove(movie.id); // Xóa lỗi cũ nếu có
 
       // Gửi thông báo khi tải xong
       final notification = AppNotification(
         id: 'download_complete_${movie.id}',
-        title: 'Tải thành công!',
-        body: 'Phim "${movie.title}" đã được tải xong và sẵn sàng để xem.',
+        title: 'Download Success!',
+        body:
+            'Movie "${movie.title}" has been downloaded and is ready to watch.',
         timestamp: DateTime.now(),
         type: NotificationType.download,
         movieId: movie.id,
@@ -182,22 +242,18 @@ class DownloadsProvider with ChangeNotifier {
       // Xử lý các lỗi khác
       _statuses[movie.id] = DownloadStatus.Error;
       debugPrint('Download error: $e');
-      _errorMessages[movie.id] = 'An error occurred.';
 
-      if (e is DioException) {
-        if (e.type == DioExceptionType.connectionTimeout ||
-            e.type == DioExceptionType.sendTimeout ||
-            e.type == DioExceptionType.receiveTimeout) {
-          _errorMessages[movie.id] =
-              'Connection timed out. Please check your network.';
-        } else if (e.type == DioExceptionType.badResponse) {
-          _errorMessages[movie.id] =
-              'Failed to download. Server returned an error.';
-        } else {
-          _errorMessages[movie.id] = 'A network error occurred.';
-        }
+      // Check specific DioException types
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        _errorMessages[movie.id] =
+            'Connection timed out. Please check your network.';
+      } else if (e.type == DioExceptionType.badResponse) {
+        _errorMessages[movie.id] =
+            'Failed to download. Server returned an error.';
       } else {
-        _errorMessages[movie.id] = 'An unknown error occurred during download.';
+        _errorMessages[movie.id] = 'A network error occurred.';
       }
     } catch (e) {
       _statuses[movie.id] = DownloadStatus.Error;
@@ -233,6 +289,8 @@ class DownloadsProvider with ChangeNotifier {
   }
 
   Future<void> removeDownload(Movie movie) async {
+    if (_currentUserId == null) return;
+
     final filePath = getFilePath(movie.id);
     if (filePath != null) {
       try {
@@ -244,12 +302,20 @@ class DownloadsProvider with ChangeNotifier {
         debugPrint('Error deleting file: $e');
       }
     }
-    await _dbHelper.removeDownload(movie.id);
+    await _dbHelper.removeDownload(movie.id, _currentUserId!);
     _downloadedMovies.removeWhere((m) => m.id == movie.id);
     _statuses.remove(movie.id);
     _filePaths.remove(movie.id);
     _errorMessages.remove(movie.id); // Cũng xóa thông báo lỗi khi xóa phim
     _progress.remove(movie.id); // Xóa progress khi xóa phim
+    notifyListeners();
+  }
+
+  void clearDownloads() {
+    _downloadedMovies = [];
+    _filePaths.clear();
+    _statuses.clear();
+    _currentUserId = null;
     notifyListeners();
   }
 }

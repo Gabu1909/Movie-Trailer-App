@@ -1,47 +1,55 @@
 class User {
   final String id;
-  final String name;
-  final String email;
+  String name;
+  String username; // Username for login - now mutable
+  String email; // Email - now mutable
   final String password; // Chỉ để mô phỏng, không nên lưu password thế này
   String? profileImageUrl;
+  String? phone;
+  String? gender;
+  String? country;
 
   User({
     required this.id,
     required this.name,
+    required this.username,
     required this.email,
     required this.password,
     this.profileImageUrl,
+    this.phone,
+    this.gender,
+    this.country,
   });
 
-  // Phương thức để chuyển đổi một đối tượng User thành Map (JSON)
+  // Convert User to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
+      'username': username,
       'email': email,
       'password': password,
       'profileImageUrl': profileImageUrl,
+      'phone': phone,
+      'gender': gender,
+      'country': country,
     };
   }
 
-  // Factory constructor để tạo một đối tượng User từ Map (JSON)
+  // Create User from JSON
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      password: json['password'],
-      profileImageUrl: json['profileImageUrl'],
+      id: json['id'] as String,
+      name: json['name'] as String,
+      // Handle old data without username - generate from email
+      username: json['username'] as String? ??
+          (json['email'] as String).split('@')[0],
+      email: json['email'] as String,
+      password: json['password'] as String,
+      profileImageUrl: json['profileImageUrl'] as String?,
+      phone: json['phone'] as String?,
+      gender: json['gender'] as String?,
+      country: json['country'] as String?,
     );
-  }
-
-  // Hàm static để chuyển đổi một Map<String, User> thành Map<String, dynamic>
-  static Map<String, dynamic> mapToJson(Map<String, User> map) {
-    return map.map((key, value) => MapEntry(key, value.toJson()));
-  }
-
-  // Hàm static để chuyển đổi một Map<String, dynamic> thành Map<String, User>
-  static Map<String, User> mapFromJson(Map<String, dynamic> json) {
-    return json.map((key, value) => MapEntry(key, User.fromJson(value)));
   }
 }

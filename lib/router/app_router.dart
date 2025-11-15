@@ -23,7 +23,7 @@ import '../screens/profile/help_center_screen.dart';
 import '../screens/shared/login_screen.dart';
 import '../screens/shared/signup_screen.dart';
 import '../screens/shared/splash_screen.dart';
-import '../screens/profile/security_screen.dart'; 
+import '../screens/profile/security_screen.dart';
 import '../screens/coming_soon/coming_soon_screen.dart'; // Đường dẫn đúng
 import '../screens/explore_news/explore_screen.dart';
 
@@ -163,7 +163,11 @@ class AppRouter {
             GoRoute(
               path: '/setting',
               builder: (context, state) =>
-                  const NotificationScreen(), // Sửa ở đây nếu NotificationScreen là StatefulWidget
+                  const NotificationScreen(), // Deprecated, use /settings
+            ),
+            GoRoute(
+              path: '/settings',
+              builder: (context, state) => const NotificationScreen(),
             ),
             GoRoute(
               path: '/help_center',

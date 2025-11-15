@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart'; // Thêm import để sử dụng SystemSound
 import 'package:intl/intl.dart'; // Import for DateFormat
+import 'package:youtube_player_flutter/youtube_player_flutter.dart'; // YouTube player
 // import 'package:flutter_staggered_animations/flutter_staggered_animations.dart'; // Tạm comment
 import '../../api/api_constants.dart';
 import '../../providers/movie_provider.dart'; // Import MovieProvider
@@ -158,13 +159,29 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       context.read<WatchlistProvider>().loadWatchlist(),
     ]);
 
-    // Hiển thị SnackBar sau khi làm mới xong
+    // Hiển thị SnackBar đồng nhất sau khi làm mới xong
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lists have been updated!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle_outline, color: Colors.green),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Lists have been updated successfully!',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.white,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -378,6 +395,78 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     // Tạm thời disable share vì package lỗi
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Share feature temporarily disabled')),
+    );
+  }
+
+  // Helper function to play YouTube trailer
+  void _playTrailer(BuildContext context, String? trailerKey) {
+    if (trailerKey == null || trailerKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Trailer not available for this movie'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    print('🎬 Playing trailer from favorites list: $trailerKey');
+    print('▶️ Playing YouTube video: https://youtube.com/watch?v=$trailerKey');
+
+    // Show YouTube player in fullscreen
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
+          backgroundColor: Colors.black.withOpacity(0.85),
+          body: Stack(
+            children: [
+              Center(
+                child: YoutubePlayer(
+                  controller: YoutubePlayerController(
+                    initialVideoId: trailerKey,
+                    flags: const YoutubePlayerFlags(
+                      autoPlay: true,
+                      mute: false,
+                      forceHD: true,
+                    ),
+                  ),
+                  progressIndicatorColor: Colors.pinkAccent,
+                  progressColors: const ProgressBarColors(
+                    playedColor: Colors.pinkAccent,
+                    handleColor: Colors.pinkAccent,
+                  ),
+                  onReady: () {
+                    print('✅ YouTube player ready');
+                  },
+                  bottomActions: [
+                    CurrentPosition(),
+                    ProgressBar(isExpanded: true),
+                    RemainingDuration(),
+                    const PlaybackSpeedButton(),
+                  ],
+                ),
+              ),
+              // Nút thoát ở góc trên bên phải
+              Positioned(
+                top: 40,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.5),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -835,30 +924,56 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Nút play thông minh: Ưu tiên trailer online, fallback sang local video
             IconButton(
               icon:
                   const Icon(Icons.play_circle_fill, color: Colors.pinkAccent),
-              onPressed: () {
-                final filePath = provider.getFilePath(movie.id);
-                if (filePath != null) {
-                  context.push('/play-local/${movie.id}',
-                      extra: {'filePath': filePath, 'title': movie.title});
+              tooltip: 'Play Trailer (or Downloaded Video if offline)',
+              onPressed: () async {
+                FeedbackService.playSound(context);
+                FeedbackService.lightImpact(context);
+
+                print(
+                    '🎬 Download play button pressed for: ${movie.title} (ID: ${movie.id})');
+                print('🔑 TrailerKey from database: ${movie.trailerKey}');
+
+                // Ưu tiên phát trailer YouTube nếu có trailerKey
+                if (movie.trailerKey != null && movie.trailerKey!.isNotEmpty) {
+                  print('✅ Playing YouTube trailer: ${movie.trailerKey}');
+                  _playTrailer(context, movie.trailerKey);
+                } else {
+                  print('⚠️ No trailerKey found, trying local video...');
+                  // Fallback: Phát video local nếu không có trailer
+                  final filePath = provider.getFilePath(movie.id);
+                  if (filePath != null) {
+                    print('📂 Playing local file: $filePath');
+                    context.push('/play-local/${movie.id}',
+                        extra: {'filePath': filePath, 'title': movie.title});
+                  } else {
+                    print('❌ No local file found either');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('No trailer or downloaded video available'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
                 }
               },
             ),
+            // Nút xóa download (màu đỏ)
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.pinkAccent),
+              icon: const Icon(Icons.delete, color: Colors.redAccent),
+              tooltip: 'Remove Download',
               onPressed: () {
                 FeedbackService.playSound(context);
                 FeedbackService.lightImpact(context);
-                // Hiển thị hộp thoại xác nhận trước khi xóa
                 _showDeleteConfirmationDialog(
                   movie: movie,
                   content: 'Are you sure you want to remove this download?',
-                  // Khi xác nhận, gọi hàm xóa từ provider
                   onConfirm: () {
-                    SystemSound.play(
-                        SystemSoundType.click); // <-- Thêm âm thanh vào đây
+                    SystemSound.play(SystemSoundType.click);
                     provider.removeDownload(movie);
                   },
                 );

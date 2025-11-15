@@ -4,7 +4,6 @@ import '../api/api_service.dart';
 import '../models/actor_detail.dart';
 import '../models/genre.dart';
 import '../models/movie.dart';
-import '../models/cast.dart';
 import '../utils/filter_helper.dart';
 import 'notification_provider.dart';
 
@@ -91,11 +90,12 @@ class MovieProvider with ChangeNotifier {
       ]);
       _popularMovies = results[0] as List<Movie>;
       _trendingMovies = _popularMovies; // Ban đầu, trending = popular
-      
+
       // Sắp xếp phim sắp ra mắt theo ngày phát hành giảm dần (mới nhất lên đầu)
       final upcoming = results[1] as List<Movie>;
       upcoming.sort((a, b) {
-        if (a.releaseDate == null) return 1; // Phim không có ngày ra mắt xuống cuối
+        if (a.releaseDate == null)
+          return 1; // Phim không có ngày ra mắt xuống cuối
         if (b.releaseDate == null) return -1;
         return b.releaseDate!.compareTo(a.releaseDate!); // So sánh ngược
       });
@@ -106,22 +106,8 @@ class MovieProvider with ChangeNotifier {
       _nowPlayingMovies = results[5] as List<Movie>;
       _weeklyTrendingMovies = results[6] as List<Movie>; // Kích hoạt lại
 
-      // Lưu danh sách phim "Popular" vào bộ đệm với key là 0
       _cachedGenreMovies[0] = _popularMovies;
 
-      // Tạo thông báo
-      if (_notificationProvider != null) {
-        _notificationProvider!.addComingSoonNotifications(_upcomingMovies);
-        _notificationProvider!.addTrendingNotifications(_weeklyTrendingMovies); // Kích hoạt lại
-        _notificationProvider!.addNowPlayingNotifications(_nowPlayingMovies);
-        // Ví dụ thêm thông báo hệ thống
-        _notificationProvider!.addSystemNotification(
-            id: 'system_update_01',
-            title: '🔔 Thông báo hệ thống',
-            body: 'Giao diện đã được làm mới với dữ liệu mới nhất!');
-      }
-
-      // Bắt đầu xử lý thông báo diễn viên (chạy ngầm không làm chậm UI)
       _createActorNotifications();
     } catch (e) {
       // Xử lý lỗi (ví dụ: in ra console)
@@ -145,11 +131,12 @@ class MovieProvider with ChangeNotifier {
       final popularActors = await _apiService.getPopularActors();
       // Chỉ xử lý cho 3 diễn viên hot nhất để tránh quá nhiều API call
       for (final actor in popularActors.take(3)) {
-        final ActorDetail actorDetail = await _apiService.getActorDetails(actor.id);
-        
+        final ActorDetail actorDetail =
+            await _apiService.getActorDetails(actor.id);
+
         // Lấy danh sách phim của diễn viên và sắp xếp theo ngày phát hành
         final List<Movie> movieCredits = actorDetail.movieCredits;
-        if (movieCredits == null || movieCredits.isEmpty) continue;
+        if (movieCredits.isEmpty) continue;
 
         movieCredits.sort((a, b) {
           final dateA = a.releaseDate;
@@ -161,7 +148,8 @@ class MovieProvider with ChangeNotifier {
 
         // Lấy phim mới nhất và tạo thông báo
         final latestMovie = movieCredits.first;
-        _notificationProvider!.addActorInNewMovieNotification(actor, latestMovie);
+        _notificationProvider.addActorInNewMovieNotification(
+            actor, latestMovie);
       }
     } catch (e) {
       debugPrint('Error creating actor notifications: $e');
@@ -234,6 +222,7 @@ class MovieProvider with ChangeNotifier {
       fetchTrendingMoviesByGenre(genreId);
     });
   }
+
   // Hàm mới để tải thêm phim "sắp ra mắt"
   Future<void> fetchMoreUpcomingMovies() async {
     if (_isFetchingMoreUpcoming || !_hasMoreUpcoming) return;
@@ -243,7 +232,8 @@ class MovieProvider with ChangeNotifier {
 
     try {
       _upcomingPage++;
-      final moreMovies = await _apiService.getUpcomingMovies(page: _upcomingPage);
+      final moreMovies =
+          await _apiService.getUpcomingMovies(page: _upcomingPage);
       if (moreMovies.isNotEmpty) {
         // Sắp xếp danh sách phim mới tải về trước khi thêm vào
         moreMovies.sort((a, b) {
@@ -252,7 +242,7 @@ class MovieProvider with ChangeNotifier {
           return b.releaseDate!.compareTo(a.releaseDate!);
         });
         // Thêm danh sách đã sắp xếp vào cuối danh sách hiện tại
-        _upcomingMovies.addAll(moreMovies); 
+        _upcomingMovies.addAll(moreMovies);
       } else {
         _hasMoreUpcoming = false; // Không còn phim để tải
       }
@@ -325,7 +315,8 @@ class MovieProvider with ChangeNotifier {
 
     try {
       final genreIds = _selectedDrawerGenreIds.join(',');
-      final countryCodes = FilterHelper.getCountryCodes(_selectedCountries.toSet());
+      final countryCodes =
+          FilterHelper.getCountryCodes(_selectedCountries.toSet());
 
       if (genreIds.isEmpty && countryCodes.isEmpty) {
         _isFilterLoading = false;

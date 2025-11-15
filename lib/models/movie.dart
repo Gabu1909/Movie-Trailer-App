@@ -57,8 +57,11 @@ class Movie {
     final videosList = json['videos']?['results'] as List?;
 
     // Debug: In ra toàn bộ videos
+    final movieId = json['id'];
+    final movieTitle = json['title'] ?? json['name'] ?? 'Unknown';
+    print('🎬 Parsing movie: $movieTitle (ID: $movieId)');
     if (videosList != null) {
-      print('🎥 Raw videos data: $videosList');
+      print('🎥 Found ${videosList.length} videos for movie $movieId');
     }
 
     // Tìm trailer chính thức từ danh sách video
@@ -87,17 +90,21 @@ class Movie {
           // Validate YouTube video ID format (phải là 11 ký tự)
           if (officialTrailerKey.length == 11) {
             print(
-                '✅ Valid trailer key: $officialTrailerKey (${officialTrailerKey.runtimeType})');
+                '✅ Movie $movieId ($movieTitle) - Trailer key: $officialTrailerKey');
           } else {
             print(
-                '⚠️ Invalid trailer key length: ${officialTrailerKey.length} for key: $officialTrailerKey');
+                '⚠️ Movie $movieId - Invalid trailer key length: ${officialTrailerKey.length} for key: $officialTrailerKey');
             officialTrailerKey = null;
           }
+        } else {
+          print('⚠️ Movie $movieId - No valid trailer found in videos list');
         }
       } catch (e) {
-        print('❌ Error parsing trailer: $e');
+        print('❌ Movie $movieId - Error parsing trailer: $e');
         officialTrailerKey = null;
       }
+    } else {
+      print('⚠️ Movie $movieId - No videos available');
     }
 
     return Movie(
@@ -135,12 +142,14 @@ class Movie {
       'posterPath': posterPath,
       'voteAverage': voteAverage,
       'voteCount': voteCount,
+      'isFavorite': 0, // Mặc định khi lưu từ API
       'isInWatchlist': 0, // Mặc định khi lưu từ API
       'mediaType': mediaType,
       'genres': _genresListToString(genres), // Convert list to string
       'runtime': runtime,
       'releaseDate': releaseDate?.toIso8601String(), // Store as ISO string
       'dateAdded': dateAdded?.toIso8601String(),
+      'trailerKey': trailerKey, // ✅ Lưu trailerKey vào database
     };
   }
 
@@ -164,6 +173,7 @@ class Movie {
       releaseDate:
           DateTime.tryParse(map['releaseDate'] ?? ''), // Parse from DB string
       dateAdded: DateTime.tryParse(map['dateAdded'] ?? ''),
+      trailerKey: map['trailerKey'] as String?, // ✅ Load trailerKey từ database
     );
   }
 
