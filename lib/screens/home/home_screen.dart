@@ -22,18 +22,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  PageController? _pageController; // Chuyển thành biến có thể null
-  int _currentPage = 10000; // Trang hiện tại của PageView (trong dải vô hạn)
-  int _actualMovieIndex = 0; // Chỉ số thực của phim trong danh sách
-  Timer? _autoSlideTimer; // Khai báo biến timer
-
-  // Key để điều khiển drawer
+  PageController? _pageController;
+  int _currentPage = 10000;
+  int _actualMovieIndex = 0;
+  Timer? _autoSlideTimer;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  // Biến cho hover effect trên genre chips
   int? _hoveredGenreId;
-
-  // Các biến cho hiệu ứng nền mới
   late AnimationController _bgController;
   late Animation<Alignment> _beginAlignmentAnimation;
   late Animation<Alignment> _endAlignmentAnimation;
@@ -43,10 +37,9 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     _bgController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 15), // Tăng thời gian để chậm hơn
+      duration: const Duration(seconds: 15),
     )..repeat(reverse: true);
 
-    // Tạo hiệu ứng chuyển động cho điểm bắt đầu và kết thúc của gradient
     _beginAlignmentAnimation =
         AlignmentTween(begin: Alignment.topLeft, end: Alignment.topRight)
             .animate(_bgController);
@@ -54,14 +47,11 @@ class _HomeScreenState extends State<HomeScreen>
         AlignmentTween(begin: Alignment.bottomRight, end: Alignment.bottomLeft)
             .animate(_bgController);
 
-    // Khởi tạo controller và bắt đầu timer
     _initializePageController();
     _startAutoSlideTimer();
   }
 
-  // Hàm để khởi tạo hoặc khởi tạo lại PageController
   void _initializePageController() {
-    // Hủy controller cũ nếu có
     _pageController?.dispose();
     _pageController = PageController(
       viewportFraction: 0.65,
@@ -85,9 +75,7 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  // Hàm để bắt đầu timer
   void _startAutoSlideTimer() {
-    // Hủy timer cũ nếu có để tránh chạy nhiều timer cùng lúc
     _autoSlideTimer?.cancel();
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (_pageController?.hasClients ?? false) {
@@ -96,13 +84,12 @@ class _HomeScreenState extends State<HomeScreen>
         if (movieProvider.trendingMovies.isEmpty) return;
         _pageController!.nextPage(
           duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic, // Thay đổi hiệu ứng chuyển động
+          curve: Curves.easeOutCubic,
         );
       }
     });
   }
 
-  // Hàm để dừng timer
   void _stopAutoSlideTimer() {
     _autoSlideTimer?.cancel();
   }
@@ -110,8 +97,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _bgController.dispose();
-    _pageController?.dispose(); // Hủy controller nếu nó tồn tại
-    _autoSlideTimer?.cancel(); // Hủy timer khi widget bị dispose
+    _pageController?.dispose();
+    _autoSlideTimer?.cancel();
     super.dispose();
   }
 
@@ -127,12 +114,14 @@ class _HomeScreenState extends State<HomeScreen>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: const [
-                  Color(0xFF12002F),
+                  Color(0xFF0D0221),
+                  Color(0xFF240046),
                   Color(0xFF3A0CA3),
-                  Color(0xFF7209B7),
+                  Color(0xFF5A189A),
                 ],
                 begin: _beginAlignmentAnimation.value,
                 end: _endAlignmentAnimation.value,
+                stops: const [0.0, 0.3, 0.7, 1.0],
               ),
             ),
             child: child,
@@ -142,10 +131,94 @@ class _HomeScreenState extends State<HomeScreen>
       child: Consumer<MovieProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Outer glow circle
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            colors: [
+                              const Color(0xFFFF006E).withOpacity(0.3),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Inner gradient circle
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFFF006E),
+                              Color(0xFFFF6EC7),
+                              Color(0xFFFFABD5),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF006E).withOpacity(0.6),
+                              blurRadius: 30,
+                              spreadRadius: 5,
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFFFF6EC7).withOpacity(0.4),
+                              blurRadius: 50,
+                              spreadRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFFFF006E), Color(0xFFFF6EC7)],
+                    ).createShader(bounds),
+                    child: const Text(
+                      'Loading Movies...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Please wait',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
           return RefreshIndicator(
             onRefresh: () => provider.fetchAllData(),
+            color: const Color(0xFFFF006E),
+            backgroundColor: Colors.white,
+            strokeWidth: 3,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
@@ -155,20 +228,18 @@ class _HomeScreenState extends State<HomeScreen>
                     _scaffoldKey.currentState?.openDrawer();
                   }),
                   _buildTrendingSection(context, provider),
-                  // Thay thế "Coming Soon" bằng "Top Rated"
+                  const SizedBox(height: 12),
                   if (provider.topRatedMovies.isNotEmpty)
                     MovieList(
                         title: 'Top Rated', movies: provider.topRatedMovies),
-                  // Giữ nguyên "Best for Kids" và sửa lại để dùng _kidsMovies
                   if (provider.kidsMovies.isNotEmpty)
                     MovieList(
                         title: 'Best for Kids', movies: provider.kidsMovies),
-                  // Thêm phần "Recommendations"
                   if (provider.weeklyTrendingMovies.isNotEmpty)
                     MovieList(
                         title: 'Recommendations',
                         movies: provider.weeklyTrendingMovies),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -178,7 +249,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Widget cho Drawer menu
   Widget _buildDrawer(BuildContext context) {
     final genres = context.read<MovieProvider>().genres;
     final List<String> countries = [
@@ -192,277 +262,357 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Drawer(
       backgroundColor: const Color(0xFF1A0933),
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(
-              color: Color(0xFF3A0CA3),
-            ),
-            child: Text(
-              'PuTa Movies',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFF240046),
+              const Color(0xFF1A0933),
+              Colors.black.withOpacity(0.9),
+            ],
+          ),
+        ),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // Enhanced Drawer Header
+            Container(
+              height: 180,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF5A189A), Color(0xFF3A0CA3)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Background pattern
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: 0.1,
+                      child: Image.network(
+                        'https://www.transparenttextures.com/patterns/45-degree-fabric-light.png',
+                        repeat: ImageRepeat.repeat,
+                      ),
+                    ),
+                  ),
+                  // Content
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF006E), Color(0xFFFF6EC7)],
+                            ),
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF006E).withOpacity(0.5),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.movie_filter_rounded,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'PuTa Movies',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Discover Amazing Content',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
 
-          // Feature Film (Phim Lẻ - chỉ movies, không có TV shows)
-          ListTile(
-            leading: const Icon(Icons.movie_filter, color: Colors.white70),
-            title: const Text('Feature Films',
-                style: TextStyle(color: Colors.white)),
-            onTap: () async {
-              final provider = context.read<MovieProvider>();
-              provider.clearDrawerGenres();
+            const SizedBox(height: 16),
 
-              // Close drawer
-              Navigator.of(context).pop();
-
-              // Đợi drawer đóng xong
-              await Future.delayed(const Duration(milliseconds: 300));
-
-              if (!context.mounted) return;
-
-              // Đợi initialization complete nếu chưa xong
-              await provider.initializationComplete;
-
-              if (!context.mounted) return;
-
-              // popularMovies đã chỉ chứa movies (từ /movie/popular endpoint)
-              final movies = provider.popularMovies;
-              print(
-                  'DEBUG: Feature Films - got ${movies.length} movies (movies only, no TV)');
-
-              if (movies.isEmpty) {
-                if (context.mounted) {
-                  UIHelpers.showWarningSnackBar(context, 'No movies found');
-                }
-                return;
-              }
-
-              if (context.mounted) {
-                context.push('/see-all',
-                    extra: {'title': 'Feature Films', 'movies': movies});
-              }
-            },
-          ), // TV Shows
-          ListTile(
-            leading: const Icon(Icons.tv, color: Colors.white70),
-            title:
-                const Text('TV Shows', style: TextStyle(color: Colors.white)),
-            onTap: () async {
-              final provider = context.read<MovieProvider>();
-              provider.clearDrawerGenres();
-
-              // Close drawer
-              Navigator.of(context).pop();
-
-              // Đợi drawer đóng xong
-              await Future.delayed(const Duration(milliseconds: 300));
-
-              if (!context.mounted) return;
-
-              // Show loading indicator
-              UIHelpers.showLoadingDialog(context);
-
-              try {
-                print('DEBUG: Fetching TV shows...');
-                final tvShows = await provider.getPopularTVShows();
-                print('DEBUG: Got ${tvShows.length} TV shows');
-
+            // Feature Film
+            _buildDrawerMenuItem(
+              context,
+              icon: Icons.movie_filter_rounded,
+              title: 'Feature Films',
+              subtitle: 'Browse all movies',
+              onTap: () async {
+                final provider = context.read<MovieProvider>();
+                provider.clearDrawerGenres();
+                Navigator.of(context).pop();
+                await Future.delayed(const Duration(milliseconds: 300));
                 if (!context.mounted) return;
-
-                // Close loading
-                UIHelpers.hideLoadingDialog(context);
-
-                if (tvShows.isEmpty) {
+                await provider.initializationComplete;
+                if (!context.mounted) return;
+                final movies = provider.popularMovies;
+                if (movies.isEmpty) {
                   if (context.mounted) {
-                    UIHelpers.showWarningSnackBar(context, 'No TV shows found');
+                    UIHelpers.showWarningSnackBar(context, 'No movies found');
                   }
                   return;
                 }
-
                 if (context.mounted) {
                   context.push('/see-all',
-                      extra: {'title': 'TV Shows', 'movies': tvShows});
+                      extra: {'title': 'Feature Films', 'movies': movies});
                 }
-              } catch (e) {
-                print('ERROR fetching TV shows: $e');
-                if (!context.mounted) return;
-                UIHelpers.hideLoadingDialog(context);
-                UIHelpers.showErrorSnackBar(
-                    context, 'Error loading TV shows: $e');
-              }
-            },
-          ),
-          const Divider(color: Colors.white24),
-
-          // Genres Section
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Genres',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(color: Colors.white),
-                ),
-                TextButton(
-                  onPressed: () {
-                    context.read<MovieProvider>().clearDrawerGenres();
-                  },
-                  child: const Text(
-                    'Clear All',
-                    style: TextStyle(
-                      color: Colors.pinkAccent,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                )
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Wrap(
-              spacing: 8.0,
-              runSpacing: 8.0,
-              children: genres
-                  .map((genre) => _buildDrawerChip(context, genre))
-                  .toList(),
-            ),
-          ),
-
-          const Divider(color: Colors.white24),
-
-          // Countries Section
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'Countries',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(color: Colors.white),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Wrap(
-              spacing: 8.0,
-              runSpacing: 8.0,
-              children: countries
-                  .map((country) => _buildCountryDrawerChip(context, country))
-                  .toList(),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Apply Filters Button
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Consumer<MovieProvider>(
-              builder: (context, provider, child) {
-                final hasFilters = provider.selectedDrawerGenreIds.isNotEmpty ||
-                    provider.selectedCountries.isNotEmpty;
-
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      print(' Apply Filters button pressed');
-
-                      final movieProvider =
-                          Provider.of<MovieProvider>(context, listen: false);
-                      final navigator =
-                          Navigator.of(context, rootNavigator: true);
-
-                      // Close drawer
-                      Navigator.of(context).pop();
-                      print('Drawer closed');
-
-                      // ĐỢI drawer đóng hoàn toàn
-                      await Future.delayed(const Duration(milliseconds: 300));
-
-                      print('Starting to fetch movies...');
-                      print(
-                          'Selected genres: ${movieProvider.selectedDrawerGenreIds}');
-                      print(
-                          'Selected countries: ${movieProvider.selectedCountries}');
-
-                      try {
-                        // Fetch movies
-                        final movies = await movieProvider.getMoviesByFilter();
-                        final title = movieProvider.getSelectedGenresText();
-
-                        print('Fetched ${movies.length} movies');
-                        print('Title: $title');
-
-                        if (movies.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'No movies found.\nTry different filters.'),
-                              backgroundColor: Colors.orange,
-                              duration: Duration(seconds: 3),
-                            ),
-                          );
-                          return;
-                        }
-
-                        print(
-                            'Navigating to /see-all with ${movies.length} movies');
-                        print('First movie: ${movies.first.title}');
-
-                        navigator.push(
-                          MaterialPageRoute(
-                            builder: (context) => SeeAllScreen(
-                              title: title,
-                              movies: movies,
-                            ),
-                          ),
-                        );
-
-                        print('Navigation completed');
-                      } catch (e) {
-                        print('ERROR applying filters: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.filter_list),
-                    label: const Text('Apply Filters'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: hasFilters
-                          ? Colors.pinkAccent
-                          : Colors.pinkAccent.withOpacity(0.6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: hasFilters ? 8 : 2,
-                    ),
-                  ),
-                );
               },
             ),
-          ),
-        ],
+
+            // TV Shows
+            _buildDrawerMenuItem(
+              context,
+              icon: Icons.live_tv_rounded,
+              title: 'TV Shows',
+              subtitle: 'Popular series',
+              onTap: () async {
+                final provider = context.read<MovieProvider>();
+                provider.clearDrawerGenres();
+                Navigator.of(context).pop();
+                await Future.delayed(const Duration(milliseconds: 300));
+                if (!context.mounted) return;
+                UIHelpers.showLoadingDialog(context);
+                try {
+                  final tvShows = await provider.getPopularTVShows();
+                  if (!context.mounted) return;
+                  UIHelpers.hideLoadingDialog(context);
+                  if (tvShows.isEmpty) {
+                    if (context.mounted) {
+                      UIHelpers.showWarningSnackBar(
+                          context, 'No TV shows found');
+                    }
+                    return;
+                  }
+                  if (context.mounted) {
+                    context.push('/see-all',
+                        extra: {'title': 'TV Shows', 'movies': tvShows});
+                  }
+                } catch (e) {
+                  if (!context.mounted) return;
+                  UIHelpers.hideLoadingDialog(context);
+                  UIHelpers.showErrorSnackBar(
+                      context, 'Error loading TV shows: $e');
+                }
+              },
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child:
+                  Divider(color: Colors.white.withOpacity(0.2), thickness: 1),
+            ),
+
+            // Genres Section
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF006E), Color(0xFFFF6EC7)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.category_rounded,
+                        color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Genres',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      context.read<MovieProvider>().clearDrawerGenres();
+                    },
+                    child: const Text(
+                      'Clear All',
+                      style: TextStyle(
+                        color: Color(0xFFFF6EC7),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                children: genres
+                    .map((genre) => _buildDrawerChip(context, genre))
+                    .toList(),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child:
+                  Divider(color: Colors.white.withOpacity(0.2), thickness: 1),
+            ),
+
+            // Countries Section
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF5A189A), Color(0xFF3A0CA3)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.public_rounded,
+                        color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Countries',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                children: countries
+                    .map((country) => _buildCountryDrawerChip(context, country))
+                    .toList(),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Apply Filters Button
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Consumer<MovieProvider>(
+                builder: (context, provider, child) {
+                  final hasFilters =
+                      provider.selectedDrawerGenreIds.isNotEmpty ||
+                          provider.selectedCountries.isNotEmpty;
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      gradient: hasFilters
+                          ? const LinearGradient(
+                              colors: [Color(0xFFFF006E), Color(0xFFFF6EC7)],
+                            )
+                          : null,
+                      boxShadow: hasFilters
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFFFF006E).withOpacity(0.5),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final movieProvider =
+                            Provider.of<MovieProvider>(context, listen: false);
+                        final navigator =
+                            Navigator.of(context, rootNavigator: true);
+                        Navigator.of(context).pop();
+                        await Future.delayed(const Duration(milliseconds: 300));
+                        try {
+                          final movies =
+                              await movieProvider.getMoviesByFilter();
+                          final title = movieProvider.getSelectedGenresText();
+                          if (movies.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'No movies found.\nTry different filters.'),
+                                backgroundColor: Colors.orange,
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                            return;
+                          }
+                          navigator.push(
+                            MaterialPageRoute(
+                              builder: (context) => SeeAllScreen(
+                                title: title,
+                                movies: movies,
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.filter_list_rounded, size: 22),
+                      label: const Text('Apply Filters'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: hasFilters
+                            ? Colors.pinkAccent
+                            : Colors.pinkAccent.withOpacity(0.6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: hasFilters ? 8 : 2,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
@@ -555,6 +705,64 @@ class _HomeScreenState extends State<HomeScreen>
               const Icon(Icons.check, color: Colors.white, size: 16),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerMenuItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF006E), Color(0xFFFF6EC7)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios,
+                  color: Colors.white, size: 16),
+            ],
+          ),
         ),
       ),
     );
