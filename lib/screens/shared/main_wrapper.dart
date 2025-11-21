@@ -38,14 +38,18 @@ class MainWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = _calculateSelectedIndex(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF240046), Color(0xFF5A189A)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+      decoration: BoxDecoration(
+        color: isDarkMode ? null : Theme.of(context).scaffoldBackgroundColor,
+        gradient: isDarkMode
+            ? const LinearGradient(
+                colors: [Color(0xFF240046), Color(0xFF5A189A)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              )
+            : null,
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,

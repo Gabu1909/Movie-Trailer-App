@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:cached_network_image/cached_network_image.dart'; // Nhớ import cái này
+
 import '../../providers/auth_provider.dart';
 import '../../utils/ui_helpers.dart';
 
@@ -16,7 +18,7 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  // Controllers for editable fields
+  // Controllers
   late TextEditingController _nameController;
   late TextEditingController _usernameController;
   late TextEditingController _emailController;
@@ -32,7 +34,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers
     _nameController = TextEditingController();
     _usernameController = TextEditingController();
     _emailController = TextEditingController();
@@ -42,7 +43,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Load data from AuthProvider after context is available
     if (_profileImageUrl == null) {
       _loadProfileData();
     }
@@ -58,7 +58,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _loadProfileData() {
-    // Load current user data from AuthProvider
     final authProvider = context.read<AuthProvider>();
     final user = authProvider.currentUser;
 
@@ -76,17 +75,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfileData() async {
-    // Validate form
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Update profile via AuthProvider
       await context.read<AuthProvider>().updateProfile(
             name: _nameController.text.trim(),
             username: _usernameController.text.trim(),
@@ -98,177 +91,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           );
 
       if (mounted) {
-        // Pop back to profile screen with success message
-        context.pop(true); // Return true to indicate success
+        context.pop(true);
+        UIHelpers.showSuccessSnackBar(context, 'Profile updated successfully!');
       }
     } catch (e) {
       if (mounted) {
         UIHelpers.showErrorSnackBar(context, 'Failed to update profile: $e');
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF12002F), Color(0xFF3A0CA3), Color(0xFF7209B7)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                _buildAppBar(context),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(20.0),
-                    children: [
-                      // Avatar
-                      _buildAvatar(),
-                      const SizedBox(height: 30),
-
-                      // Full Name (editable)
-                      _buildTextField(
-                        controller: _nameController,
-                        hintText: 'Full Name',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Username (editable)
-                      _buildTextField(
-                        controller: _usernameController,
-                        hintText: 'Username',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter username';
-                          }
-                          if (value.length < 3) {
-                            return 'Username must be at least 3 characters';
-                          }
-                          if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
-                            return 'Only letters, numbers and underscore';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Email (editable)
-                      _buildTextField(
-                        controller: _emailController,
-                        hintText: 'Email Address',
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter email';
-                          }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                              .hasMatch(value)) {
-                            return 'Please enter valid email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Phone
-                      _buildPhoneField(),
-                      const SizedBox(height: 20),
-
-                      // Gender
-                      _buildDropdownField(
-                        hintText: 'Gender',
-                        value: _selectedGender,
-                        items: ['Male', 'Female', 'Other'],
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedGender = newValue;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Country
-                      _buildDropdownField(
-                        hintText: 'Country/Region',
-                        value: _selectedCountry,
-                        items: [
-                          'Vietnam',
-                          'United States',
-                          'Canada',
-                          'United Kingdom'
-                        ],
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedCountry = newValue;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 40),
-
-                      // Update Button
-                      _buildUpdateButton(context),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar(BuildContext context) {
-    // Giữ nguyên AppBar
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new,
-                    color: Colors.white70, size: 20),
-                onPressed: () => context.pop(),
-              ),
-            ),
-          ),
-          const Text(
-            'Edit Profile',
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Pick image from gallery or camera
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -279,96 +113,162 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
 
       if (pickedFile != null) {
-        // Save image to app directory
         final appDir = await getApplicationDocumentsDirectory();
         final fileName =
             'profile_${DateTime.now().millisecondsSinceEpoch}${path.extension(pickedFile.path)}';
         final savedImage =
             await File(pickedFile.path).copy('${appDir.path}/$fileName');
 
-        setState(() {
-          _profileImageUrl = savedImage.path;
-        });
-
-        if (mounted) {
-          UIHelpers.showSuccessSnackBar(
-              context, 'Image selected successfully!');
-        }
+        setState(() => _profileImageUrl = savedImage.path);
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         UIHelpers.showErrorSnackBar(context, 'Failed to pick image: $e');
-      }
     }
   }
 
-  // Show image picker options
-  void _showImagePickerOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF2B124C),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: _buildAppBar(context),
+      body: Container(
+        decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            gradient: Theme.of(context).brightness == Brightness.dark
+                ? const LinearGradient(
+                    colors: [
+                        Color(0xFF12002F),
+                        Color(0xFF2A0955),
+                        Color(0xFF12002F)
+                      ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  )
+                : null),
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
               children: [
-                const Text(
-                  'Choose Profile Photo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const SizedBox(height: 20),
+
+                // 1. Avatar Section
+                _buildAvatarSection(),
+
+                const SizedBox(height: 40),
+
+                // 2. Form Fields
+                _buildLabel('Full Name'),
+                _buildTextField(
+                  controller: _nameController,
+                  hintText: 'Enter your name',
+                  icon: Icons.person_outline,
                 ),
                 const SizedBox(height: 20),
-                ListTile(
-                  leading:
-                      const Icon(Icons.photo_camera, color: Colors.pinkAccent),
-                  title: const Text('Take Photo',
-                      style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.camera);
-                  },
+
+                _buildLabel('Username'),
+                _buildTextField(
+                  controller: _usernameController,
+                  hintText: 'Enter username',
+                  icon: Icons.alternate_email,
                 ),
-                ListTile(
-                  leading:
-                      const Icon(Icons.photo_library, color: Colors.pinkAccent),
-                  title: const Text('Choose from Gallery',
-                      style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.gallery);
-                  },
+                const SizedBox(height: 20),
+
+                _buildLabel('Email Address'),
+                _buildTextField(
+                  controller: _emailController,
+                  hintText: 'Enter email',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                 ),
-                ListTile(
-                  leading: const Icon(Icons.cancel, color: Colors.white70),
-                  title: const Text('Cancel',
-                      style: TextStyle(color: Colors.white70)),
-                  onTap: () => Navigator.pop(context),
+                const SizedBox(height: 20),
+
+                _buildLabel('Phone Number'),
+                _buildPhoneField(),
+                const SizedBox(height: 20),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('Gender'),
+                          _buildDropdownField(
+                            hintText: 'Select',
+                            value: _selectedGender,
+                            items: ['Male', 'Female', 'Other'],
+                            onChanged: (v) =>
+                                setState(() => _selectedGender = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('Country'),
+                          _buildDropdownField(
+                            hintText: 'Select',
+                            value: _selectedCountry,
+                            items: ['Vietnam', 'USA', 'UK', 'Japan'],
+                            onChanged: (v) =>
+                                setState(() => _selectedCountry = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 40),
+
+                // 3. Action Button
+                _buildUpdateButton(),
+                const SizedBox(height: 40),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  // Avatar widget
-  Widget _buildAvatar() {
-    // Default avatar if no image
-    ImageProvider avatarImage;
+  // --- WIDGETS ---
 
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      leading: Container(
+        margin: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new, size: 18, color: Theme.of(context).colorScheme.onSurface),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      title: const Text(
+        "Edit Profile",
+      ),
+      centerTitle: true,
+    );
+  }
+
+  Widget _buildAvatarSection() {
+    ImageProvider avatarImage;
     if (_profileImageUrl == null || _profileImageUrl!.isEmpty) {
       avatarImage = const NetworkImage('https://i.pravatar.cc/150?img=12');
     } else if (_profileImageUrl!.startsWith('http')) {
-      avatarImage = NetworkImage(_profileImageUrl!);
+      avatarImage = CachedNetworkImageProvider(_profileImageUrl!);
     } else {
       avatarImage = FileImage(File(_profileImageUrl!));
     }
@@ -376,25 +276,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Center(
       child: Stack(
         children: [
-          CircleAvatar(
-            radius: 60,
-            backgroundImage: avatarImage,
-            backgroundColor: Colors.white24,
+          // Glow Effect
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.pinkAccent.withOpacity(0.3),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+              border: Border.all(color: Colors.pinkAccent, width: 2),
+            ),
+            child: CircleAvatar(
+              radius: 60,
+              backgroundColor: Colors.black26,
+              backgroundImage: avatarImage,
+            ),
           ),
+          // Edit Button
           Positioned(
             bottom: 0,
             right: 0,
-            child: InkWell(
+            child: GestureDetector(
               onTap: _showImagePickerOptions,
               child: Container(
+                height: 40,
+                width: 40,
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  gradient: const LinearGradient(
+                    colors: [Colors.pinkAccent, Colors.purpleAccent],
+                  ),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF12002F), width: 2),
+                  border: Border.all(color: const Color(0xFF12002F), width: 3),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4)
+                  ],
                 ),
-                padding: const EdgeInsets.all(6),
-                child:
-                    const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                child: const Icon(Icons.camera_alt_outlined,
+                    color: Colors.white, size: 20),
               ),
             ),
           )
@@ -403,146 +324,222 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  // Widget TextField đã cập nhật (bỏ prefix, dùng hintText)
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0, left: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.7),
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
+    required IconData icon,
     TextInputType keyboardType = TextInputType.text,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hintText, // Dùng hintText thay cho labelText
-        hintStyle: const TextStyle(color: Colors.white70),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.pinkAccent),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+          prefixIcon: Icon(icon, color: Colors.white54, size: 20),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
-        errorStyle: const TextStyle(color: Colors.redAccent),
+        validator: (value) {
+          if (value == null || value.isEmpty) return 'This field is required';
+          return null;
+        },
       ),
     );
   }
 
-  // Widget tùy chỉnh cho SĐT
   Widget _buildPhoneField() {
-    return TextFormField(
-      controller: _phoneController,
-      keyboardType: TextInputType.phone,
-      style: const TextStyle(color: Colors.white),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter phone number';
-        }
-        // Validate Vietnamese phone format (9-11 digits)
-        if (!RegExp(r'^[0-9]{9,11}$').hasMatch(value)) {
-          return 'Invalid phone number (9-11 digits)';
-        }
-        return null;
-      },
-      decoration: InputDecoration(
-        hintText: 'Phone Number',
-        hintStyle: const TextStyle(color: Colors.white70),
-        // Tạo prefixIcon tùy chỉnh với cờ và mũi tên
-        prefixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 12),
-            Text('🇻🇳', style: TextStyle(fontSize: 24)),
-            const Icon(Icons.arrow_drop_down, color: Colors.white70),
-            Container(
-              width: 1,
-              height: 24,
-              color: Colors.white30,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: TextFormField(
+        controller: _phoneController,
+        keyboardType: TextInputType.phone,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: '000-000-000',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🇻🇳', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Container(width: 1, height: 24, color: Colors.white24),
+              ],
             ),
-          ],
-        ),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.pinkAccent),
+          ),
         ),
       ),
     );
   }
 
-  // Widget cho Dropdown
   Widget _buildDropdownField({
     required String hintText,
     required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
-    // Ensure value is valid or null
-    final validValue = (value != null && items.contains(value)) ? value : null;
-
-    return DropdownButtonFormField<String>(
-      value: validValue,
-      items: items.map((String item) {
-        return DropdownMenuItem<String>(
-          value: item,
-          child: Text(item),
-        );
-      }).toList(),
-      onChanged: onChanged,
-      style: const TextStyle(color: Colors.white),
-      dropdownColor: const Color(0xFF2B124C), // Màu nền của menu
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(color: Colors.white70),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.pinkAccent),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: (value != null && items.contains(value)) ? value : null,
+          hint: Text(hintText,
+              style: TextStyle(color: Colors.white.withOpacity(0.3))),
+          dropdownColor: const Color(0xFF2B124C),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              color: Colors.white54),
+          style: const TextStyle(color: Colors.white),
+          isExpanded: true,
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(item),
+            );
+          }).toList(),
+          onChanged: onChanged,
         ),
-        suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
       ),
     );
   }
 
-  // Update button
-  Widget _buildUpdateButton(BuildContext context) {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : _saveProfileData,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.red,
-        foregroundColor: Colors.white,
-        minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        disabledBackgroundColor: Colors.red.withOpacity(0.5),
+  Widget _buildUpdateButton() {
+    return Container(
+      width: double.infinity,
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.pinkAccent.withOpacity(0.4),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        gradient: const LinearGradient(
+          colors: [Colors.pinkAccent, Colors.purpleAccent],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
       ),
-      child: _isLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _saveProfileData,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2),
+              )
+            : const Text(
+                'Save Changes',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
-            )
-          : const Text(
-              'Update',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  void _showImagePickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent, // Để bo góc đẹp hơn
+      builder: (BuildContext context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1D0B3C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    'Change Profile Picture',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_rounded,
+                      color: Colors.pinkAccent),
+                  title: const Text('Take a photo',
+                      style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_rounded,
+                      color: Colors.purpleAccent),
+                  title: const Text('Choose from gallery',
+                      style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
+          ),
+        );
+      },
     );
   }
 }

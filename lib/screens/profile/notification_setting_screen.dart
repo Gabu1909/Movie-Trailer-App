@@ -1,8 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../theme/app_themes.dart';
 import '../../utils/ui_helpers.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
+  // Local state for notifications
   bool _generalNotification = true;
   bool _newArrival = true;
   bool _newServices = true;
@@ -41,14 +44,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> _saveNotificationSetting(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, value);
-    final settingName =
+
+    // Format name for Snackbar
+    String settingName =
         key.replaceAll('notification_', '').replaceAll('_', ' ');
+    settingName = settingName[0].toUpperCase() + settingName.substring(1);
 
     if (mounted) {
-      UIHelpers.showSuccessSnackBar(
-        context,
-        '${settingName[0].toUpperCase()}${settingName.substring(1)} updated',
-      );
+      // Optional: Show snackbar or just silent save
+      // UIHelpers.showSuccessSnackBar(context, '$settingName updated');
     }
   }
 
@@ -56,139 +60,127 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
-          onPressed: () => context.pop(),
-        ),
-      ),
+      appBar: _buildAppBar(context),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF2B124C), Color(0xFF5B2A9B)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+        decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            gradient: Theme.of(context).brightness == Brightness.dark
+                ? const LinearGradient(
+                    colors: [
+                        Color(0xFF12002F),
+                        Color(0xFF2A0955),
+                        Color(0xFF12002F)
+                      ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  )
+                : null),
         child: SafeArea(
           child: Consumer<SettingsProvider>(
             builder: (context, settings, child) {
               return ListView(
-                padding: const EdgeInsets.all(16.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
                 children: [
-                  // Appearance Section
-                  _buildSectionTitle('Appearance'),
-                  _buildThemeModeTile(
-                    title: 'Theme Mode',
-                    subtitle: 'Choose light or dark theme',
-                    icon: settings.isDarkMode
-                        ? Icons.dark_mode
-                        : Icons.light_mode,
-                    currentMode: settings.themeMode,
-                  ),
+                  // 1. APPEARANCE & GENERAL GROUP
+                  _buildSectionTitle('General & Appearance'),
+                  _buildSettingsGroup([
+                    _buildValueItem(
+                      context, // Sử dụng themeId mới
+                      icon: Icons.palette_outlined,
+                      iconColor: Colors.amber,
+                      title: 'App Theme',
+                      value: AppThemes.findById(settings.themeId).name,
+                      onTap: () => _showThemePickerDialog(context, settings),
+                    ),
+                    _buildDivider(),
+                    _buildSwitchItem(
+                      icon: Icons.volume_up_rounded,
+                      iconColor: Colors.blueAccent,
+                      title: 'Sound Effects',
+                      value: settings.soundEnabled,
+                      onChanged: (v) => settings.toggleSound(v),
+                    ),
+                    _buildDivider(),
+                    _buildSwitchItem(
+                      icon: Icons.vibration_rounded,
+                      iconColor: Colors.tealAccent,
+                      title: 'Haptic Feedback',
+                      value: settings.hapticsEnabled,
+                      onChanged: (v) => settings.toggleHaptics(v),
+                    ),
+                  ]),
 
-                  const Divider(color: Colors.white24, height: 32),
+                  const SizedBox(height: 24),
 
-                  // General Section
-                  _buildSectionTitle('General'),
-                  _buildSwitchTile(
-                    title: 'Sound Effects',
-                    subtitle: 'Enable sound on button clicks',
-                    icon: Icons.volume_up_outlined,
-                    value: settings.soundEnabled,
-                    onChanged: (value) => settings.toggleSound(value),
-                  ),
-                  _buildSwitchTile(
-                    title: 'Haptic Feedback',
-                    subtitle: 'Enable vibration on interactions',
-                    icon: Icons.vibration,
-                    value: settings.hapticsEnabled,
-                    onChanged: (value) => settings.toggleHaptics(value),
-                  ),
-
-                  const Divider(color: Colors.white24, height: 32),
-
-                  // Notifications Section
+                  // 2. NOTIFICATIONS GROUP
                   _buildSectionTitle('Notifications'),
-                  _buildNotificationSwitchTile(
-                    title: 'General Notification',
-                    subtitle: 'Enable all notifications',
-                    icon: Icons.notifications_outlined,
-                    value: _generalNotification,
-                    onChanged: (value) {
-                      _saveNotificationSetting('notification_general', value);
-                      setState(() => _generalNotification = value);
-                    },
-                  ),
-                  _buildNotificationSwitchTile(
-                    title: 'New Arrival',
-                    subtitle: 'New movies added to catalog',
-                    icon: Icons.fiber_new_outlined,
-                    value: _newArrival,
-                    onChanged: (value) {
-                      _saveNotificationSetting(
-                          'notification_new_arrival', value);
-                      setState(() => _newArrival = value);
-                    },
-                  ),
-                  _buildNotificationSwitchTile(
-                    title: 'New Services Available',
-                    subtitle: 'Updates about new features',
-                    icon: Icons.stars_outlined,
-                    value: _newServices,
-                    onChanged: (value) {
-                      _saveNotificationSetting(
-                          'notification_new_services', value);
-                      setState(() => _newServices = value);
-                    },
-                  ),
-                  _buildNotificationSwitchTile(
-                    title: 'New Releases Movie',
-                    subtitle: 'Latest movie releases',
-                    icon: Icons.movie_outlined,
-                    value: _newReleases,
-                    onChanged: (value) {
-                      _saveNotificationSetting(
-                          'notification_new_releases', value);
-                      setState(() => _newReleases = value);
-                    },
-                  ),
-                  _buildNotificationSwitchTile(
-                    title: 'App Updates',
-                    subtitle: 'New app versions available',
-                    icon: Icons.system_update_outlined,
-                    value: _appUpdates,
-                    onChanged: (value) {
-                      _saveNotificationSetting(
-                          'notification_app_updates', value);
-                      setState(() => _appUpdates = value);
-                    },
-                  ),
-                  _buildNotificationSwitchTile(
-                    title: 'Subscription',
-                    subtitle: 'Subscription renewal reminders',
-                    icon: Icons.card_membership_outlined,
-                    value: _subscription,
-                    onChanged: (value) {
-                      _saveNotificationSetting(
-                          'notification_subscription', value);
-                      setState(() => _subscription = value);
-                    },
-                  ),
+                  _buildSettingsGroup([
+                    _buildSwitchItem(
+                      icon: Icons.notifications_active_rounded,
+                      iconColor: Colors.pinkAccent,
+                      title: 'General Notification',
+                      subtitle: 'Enable push notifications',
+                      value: _generalNotification,
+                      onChanged: (v) {
+                        _saveNotificationSetting('notification_general', v);
+                        setState(() => _generalNotification = v);
+                      },
+                    ),
+                    _buildDivider(),
+                    _buildSwitchItem(
+                      icon: Icons.new_releases_rounded,
+                      iconColor: Colors.purpleAccent,
+                      title: 'New Arrivals & Releases',
+                      value:
+                          _newArrival, // Combining new arrival & releases for cleaner UI logic if wanted, or keep separate
+                      onChanged: (v) {
+                        _saveNotificationSetting('notification_new_arrival', v);
+                        setState(() => _newArrival = v);
+                      },
+                    ),
+                    _buildDivider(),
+                    _buildSwitchItem(
+                      icon: Icons.update_rounded,
+                      iconColor: Colors.greenAccent,
+                      title: 'App Updates',
+                      value: _appUpdates,
+                      onChanged: (v) {
+                        _saveNotificationSetting('notification_app_updates', v);
+                        setState(() => _appUpdates = v);
+                      },
+                    ),
+                    _buildDivider(),
+                    _buildSwitchItem(
+                      icon: Icons.card_membership_rounded,
+                      iconColor: Colors.orangeAccent,
+                      title: 'Subscription',
+                      subtitle: 'Renewal reminders',
+                      value: _subscription,
+                      onChanged: (v) {
+                        _saveNotificationSetting(
+                            'notification_subscription', v);
+                        setState(() => _subscription = v);
+                      },
+                    ),
+                  ]),
 
-                  const Divider(color: Colors.white24, height: 32),
+                  const SizedBox(height: 24),
 
-                  // Downloads Section
-                  _buildSectionTitle('Downloads'),
-                  _buildQualitySettingTile(
-                    title: 'Video Quality',
-                    subtitle: 'Select quality for downloaded videos',
-                    icon: Icons.high_quality_outlined,
-                    currentQuality: settings.downloadQuality,
-                  ),
+                  // 3. DOWNLOADS GROUP
+                  _buildSectionTitle('Content'),
+                  _buildSettingsGroup([
+                    _buildValueItem(
+                      context,
+                      icon: Icons.high_quality_rounded,
+                      iconColor: Colors.redAccent,
+                      title: 'Download Quality',
+                      value: _getQualityName(settings.downloadQuality),
+                      onTap: () => _showQualityDialog(settings.downloadQuality),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 40),
                 ],
               );
             },
@@ -198,13 +190,39 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
+  // --- WIDGET BUILDERS ---
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: true,
+      title: const Text(
+        'Settings',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+      leading: Container(
+        margin: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              size: 18, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 12.0, left: 8),
       child: Text(
         title.toUpperCase(),
         style: const TextStyle(
-          color: Colors.white70,
+          color: Colors.white54,
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.2,
@@ -213,232 +231,248 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  Widget _buildSwitchTile({
-    required String title,
-    required String subtitle,
+  // Container bao quanh nhóm settings (Glassmorphism)
+  Widget _buildSettingsGroup(List<Widget> children) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF251043).withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(
+        height: 1, color: Colors.white.withOpacity(0.05), indent: 60);
+  }
+
+  // Item hiển thị giá trị + mũi tên (Dùng cho Theme, Quality)
+  Widget _buildValueItem(
+    BuildContext context, {
     required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20), // Radius cho hiệu ứng ripple
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              _buildIconBox(icon, iconColor),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.6), fontSize: 14),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  color: Colors.white.withOpacity(0.3), size: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Item hiển thị Switch (On/Off)
+  Widget _buildSwitchItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return SwitchListTile.adaptive(
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      secondary: Icon(icon, color: Colors.pinkAccent),
-      value: value,
-      onChanged: onChanged,
-      activeColor: Colors.pinkAccent,
-    );
-  }
-
-  Widget _buildNotificationSwitchTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return SwitchListTile.adaptive(
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      secondary: Icon(icon, color: Colors.purpleAccent),
-      value: value,
-      onChanged: onChanged,
-      activeColor: Colors.purpleAccent,
-    );
-  }
-
-  Widget _buildThemeModeTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required AppThemeMode currentMode,
-  }) {
-    String themeModeToString(AppThemeMode mode) {
-      switch (mode) {
-        case AppThemeMode.light:
-          return 'Light';
-        case AppThemeMode.dark:
-          return 'Dark';
-        case AppThemeMode.system:
-          return 'System';
-      }
-    }
-
-    return ListTile(
-      leading: Icon(icon, color: Colors.amberAccent),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
         children: [
-          Text(
-            themeModeToString(currentMode),
-            style: const TextStyle(
-                color: Colors.amberAccent, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-        ],
-      ),
-      onTap: () => _showThemeModeDialog(currentMode),
-    );
-  }
-
-  Widget _buildQualitySettingTile({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required DownloadQuality currentQuality,
-  }) {
-    String qualityToString(DownloadQuality quality) {
-      switch (quality) {
-        case DownloadQuality.high:
-          return 'High';
-        case DownloadQuality.medium:
-          return 'Medium';
-        case DownloadQuality.low:
-          return 'Low';
-      }
-    }
-
-    return ListTile(
-      leading: Icon(icon, color: Colors.pinkAccent),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      subtitle: Text(subtitle,
-          style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            qualityToString(currentQuality),
-            style: const TextStyle(
-                color: Colors.pinkAccent, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-        ],
-      ),
-      onTap: () => _showQualityDialog(currentQuality),
-    );
-  }
-
-  void _showThemeModeDialog(AppThemeMode currentMode) {
-    final settings = context.read<SettingsProvider>();
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF3A0CA3),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Select Theme Mode',
-              style: TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: AppThemeMode.values.map((mode) {
-              IconData icon;
-              String description;
-              switch (mode) {
-                case AppThemeMode.light:
-                  icon = Icons.light_mode;
-                  description = 'Always use light theme';
-                  break;
-                case AppThemeMode.dark:
-                  icon = Icons.dark_mode;
-                  description = 'Always use dark theme';
-                  break;
-                case AppThemeMode.system:
-                  icon = Icons.brightness_auto;
-                  description = 'Follow system setting';
-                  break;
-              }
-
-              return RadioListTile<AppThemeMode>(
-                title: Row(
-                  children: [
-                    Icon(icon, color: Colors.white70, size: 20),
-                    const SizedBox(width: 12),
-                    Text(
-                      mode.name[0].toUpperCase() + mode.name.substring(1),
-                      style: const TextStyle(color: Colors.white),
+          _buildIconBox(icon, iconColor),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500),
+                ),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      subtitle,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.5), fontSize: 12),
                     ),
-                  ],
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(left: 32),
-                  child: Text(description,
-                      style:
-                          const TextStyle(color: Colors.white60, fontSize: 11)),
-                ),
-                value: mode,
-                groupValue: settings.themeMode,
-                onChanged: (AppThemeMode? value) {
-                  if (value != null) {
-                    settings.setThemeMode(value);
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-                activeColor: Colors.amberAccent,
-                contentPadding: EdgeInsets.zero,
-              );
-            }).toList(),
-          ),
-          actions: [
-            TextButton(
-              child:
-                  const Text('Cancel', style: TextStyle(color: Colors.white70)),
-              onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+              ],
             ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.pinkAccent,
+            activeTrackColor: Colors.pinkAccent.withOpacity(0.4),
+            inactiveThumbColor: Colors.grey,
+            inactiveTrackColor: Colors.white10,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconBox(IconData icon, Color color) {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
+  }
+
+  // --- HELPER METHODS ---
+
+  String _getQualityName(DownloadQuality quality) {
+    switch (quality) {
+      case DownloadQuality.high:
+        return 'High';
+      case DownloadQuality.medium:
+        return 'Medium';
+      case DownloadQuality.low:
+        return 'Low';
+    }
+  }
+
+  // --- DIALOGS (Tùy chỉnh lại cho đẹp hơn) ---
+
+  // --- Dialog chọn theme mới ---
+  void _showThemePickerDialog(BuildContext context, SettingsProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: Color(0xFF1D0B3C),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('Select a Theme',
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: AppThemes.themes.length,
+                itemBuilder: (context, index) {
+                  final theme = AppThemes.themes[index];
+                  final isSelected = provider.themeId == theme.id;
+                  return ListTile(
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(colors: theme.gradientColors),
+                      ),
+                    ),
+                    title: Text(
+                      theme.name,
+                      style: TextStyle(
+                        color: isSelected ? Colors.pinkAccent : Colors.white,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle,
+                            color: Colors.pinkAccent)
+                        : null,
+                    onTap: () {
+                      provider.setTheme(theme.id);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
   void _showQualityDialog(DownloadQuality currentQuality) {
     final settings = context.read<SettingsProvider>();
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF3A0CA3),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Select Video Quality',
-              style: TextStyle(color: Colors.white)),
-          content: Column(
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1D0B3C),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: DownloadQuality.values.map((quality) {
-              return RadioListTile<DownloadQuality>(
-                title: Text(
-                  quality.name[0].toUpperCase() + quality.name.substring(1),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                value: quality,
-                groupValue: settings.downloadQuality,
-                onChanged: (DownloadQuality? value) {
-                  if (value != null) {
-                    settings.setDownloadQuality(value);
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-                activeColor: Colors.pinkAccent,
-                contentPadding: EdgeInsets.zero,
-              );
-            }).toList(),
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Download Quality',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold)),
+              ),
+              ...DownloadQuality.values.map((q) => ListTile(
+                    title: Text(_getQualityName(q),
+                        style: TextStyle(
+                            color: settings.downloadQuality == q
+                                ? Colors.pinkAccent
+                                : Colors.white)),
+                    trailing: settings.downloadQuality == q
+                        ? const Icon(Icons.check, color: Colors.pinkAccent)
+                        : null,
+                    onTap: () {
+                      settings.setDownloadQuality(q);
+                      Navigator.pop(context);
+                    },
+                  )),
+              const SizedBox(height: 20),
+            ],
           ),
-          actions: [
-            TextButton(
-              child:
-                  const Text('Cancel', style: TextStyle(color: Colors.white70)),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

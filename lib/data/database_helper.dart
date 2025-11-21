@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/movie.dart';
+import '../models/review.dart'; // Import Review model
+import '../models/user_review_with_movie.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -17,9 +20,9 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    // Tăng version lên 15 để clean duplicate downloads
+    // Tăng version lên 17 để thêm bảng user_reviews
     return await openDatabase(path,
-        version: 15, onCreate: _createDB, onUpgrade: _onUpgrade);
+        version: 18, onCreate: _createDB, onUpgrade: _onUpgrade);
   }
 
   Future _createDB(Database db, int version) async {
@@ -31,6 +34,7 @@ class DatabaseHelper {
         title TEXT NOT NULL,
         overview TEXT NOT NULL,
         posterPath TEXT,
+        backdropPath TEXT,
         voteAverage REAL NOT NULL,
         voteCount INTEGER NOT NULL DEFAULT 0,
         isFavorite INTEGER NOT NULL DEFAULT 0,
@@ -68,6 +72,17 @@ class DatabaseHelper {
         routeArgs TEXT
       )
     ''');
+
+    // Bảng mới để lưu review của người dùng (device-specific)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_reviews (
+        movieId INTEGER PRIMARY KEY,
+        rating REAL,
+        content TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+    print('✅ Created user_reviews table');
 
     // ⚡ Create indexes for optimization
     await db.execute(
@@ -120,6 +135,7 @@ class DatabaseHelper {
           title TEXT NOT NULL,
           overview TEXT NOT NULL,
           posterPath TEXT,
+          backdropPath TEXT,
           voteAverage REAL NOT NULL,
           voteCount INTEGER NOT NULL DEFAULT 0,
           isFavorite INTEGER NOT NULL DEFAULT 0,
@@ -207,6 +223,45 @@ class DatabaseHelper {
       }
     }
 
+    // Version 16: Add backdropPath column
+    if (oldVersion < 16) {
+      print('🔨 Adding backdropPath column to movies table...');
+      try {
+        await db.execute('ALTER TABLE movies ADD COLUMN backdropPath TEXT');
+        print('✅ Added backdropPath column');
+      } catch (e) {
+        print('⚠️ Error adding backdropPath column (may already exist): $e');
+      }
+    }
+
+    // Version 17: Add user_reviews table
+    if (oldVersion < 17) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_reviews (
+          movieId INTEGER PRIMARY KEY,
+          rating REAL,
+          content TEXT NOT NULL,
+          createdAt TEXT NOT NULL
+        )
+      ''');
+      print('✅ Created user_reviews table on upgrade');
+    }
+    if (oldVersion < 18) {
+      try {
+        await db.execute('ALTER TABLE user_reviews ADD COLUMN authorName TEXT');
+        print('✅ Added authorName column to user_reviews');
+      } catch (e) {
+        print('⚠️ Error adding authorName column (may already exist): $e');
+      }
+      try {
+        await db.execute(
+            'ALTER TABLE user_reviews ADD COLUMN authorAvatarPath TEXT');
+        print('✅ Added authorAvatarPath column to user_reviews');
+      } catch (e) {
+        print(
+            '⚠️ Error adding authorAvatarPath column (may already exist): $e');
+      }
+    }
     // Ensure notifications table exists
     await db.execute('''
       CREATE TABLE IF NOT EXISTS notifications (
@@ -272,9 +327,14 @@ class DatabaseHelper {
 
   Future<List<Movie>> getFavorites(String userId) async {
     final db = await instance.database;
-    final result = await db.query('movies',
-        where: 'isFavorite = 1 AND userId = ?', whereArgs: [userId]);
-    return result.map((json) => Movie.fromMap(json)).toList();
+    final List<Map<String, dynamic>> result = await db.query(
+      'movies',
+      where: 'isFavorite = 1 AND userId = ?',
+      whereArgs: [userId],
+      orderBy: 'dateAdded DESC', // Sắp xếp theo ngày thêm mới nhất
+    );
+    // Chạy việc mapping trên Isolate khác nếu danh sách lớn
+    return compute(_parseMovieList, result);
   }
 
   Future<void> removeFavorite(int id, String userId) async {
@@ -326,9 +386,13 @@ class DatabaseHelper {
 
   Future<List<Movie>> getWatchlist(String userId) async {
     final db = await instance.database;
-    final result = await db.query('movies',
-        where: 'isInWatchlist = 1 AND userId = ?', whereArgs: [userId]);
-    return result.map((json) => Movie.fromMap(json)).toList();
+    final result = await db.query(
+      'movies',
+      where: 'isInWatchlist = 1 AND userId = ?',
+      whereArgs: [userId],
+      orderBy: 'dateAdded DESC', // Sắp xếp theo ngày thêm mới nhất
+    );
+    return compute(_parseMovieList, result);
   }
 
   Future<bool> isInWatchlist(int id, String userId) async {
@@ -411,4 +475,84 @@ class DatabaseHelper {
     }
     return movieFromApi; // Return the API movie if not in DB
   }
+
+  // --- User Reviews ---
+  Future<void> saveUserReview(int movieId, double rating, String content,
+      String? authorName, String? authorAvatarPath) async {
+    final db = await instance.database;
+    await db.insert(
+      'user_reviews',
+      {
+        'movieId': movieId,
+        'rating': rating,
+        'content': content,
+        'createdAt': DateTime.now().toIso8601String(),
+        'authorName': authorName,
+        'authorAvatarPath': authorAvatarPath,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<Review?> getUserReview(int movieId) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'user_reviews',
+      where: 'movieId = ?',
+      whereArgs: [movieId],
+    );
+
+    if (maps.isNotEmpty) {
+      final map = maps.first;
+      // Lấy dữ liệu từ các cột mới, nếu chúng tồn tại
+      final authorName =
+          map.containsKey('authorName') ? map['authorName'] as String? : null;
+      final avatarPath = map.containsKey('authorAvatarPath')
+          ? map['authorAvatarPath'] as String?
+          : null;
+
+      return Review(
+        author: authorName ?? 'You', // Fallback về 'You' nếu tên là null
+        content: map['content'] as String,
+        createdAt: map['createdAt'] as String,
+        rating: map['rating'] as double?,
+        avatarPath: avatarPath, // Sử dụng avatar từ DB
+      );
+    }
+    return null;
+  }
+
+  Future<void> deleteUserReview(int movieId) async {
+    final db = await instance.database;
+    await db.delete('user_reviews', where: 'movieId = ?', whereArgs: [movieId]);
+    print('🗑️ Deleted user review for movie ID: $movieId');
+  }
+
+  Future<List<UserReviewWithMovie>> getAllUserReviews(String userId,
+      {int limit = 20, int offset = 0}) async {
+    final db = await instance.database;
+    // Sử dụng INNER JOIN để kết hợp bảng user_reviews và movies
+    // Lấy tất cả các cột từ cả hai bảng
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+        ur.movieId, ur.rating, ur.content, ur.createdAt,
+        m.*
+      FROM user_reviews ur
+      INNER JOIN movies m ON ur.movieId = m.id
+      ORDER BY ur.createdAt DESC -- Sắp xếp theo ngày tạo mới nhất
+      LIMIT ? OFFSET ?
+    ''', [limit, offset]);
+
+    if (maps.isEmpty) {
+      return [];
+    }
+
+    // Chuyển đổi kết quả query thành danh sách UserReviewWithMovie
+    return maps.map((map) => UserReviewWithMovie.fromMap(map)).toList();
+  }
+}
+
+// Hàm top-level để parse danh sách movie từ map
+List<Movie> _parseMovieList(List<Map<String, dynamic>> maps) {
+  return maps.map((json) => Movie.fromMap(json)).toList();
 }

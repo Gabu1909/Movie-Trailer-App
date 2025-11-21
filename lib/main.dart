@@ -11,10 +11,13 @@ import 'providers/movie_detail_provider.dart'; // Import MovieDetailProvider
 import 'providers/actor_detail_provider.dart'; // Import ActorDetailProvider
 import 'providers/auth_provider.dart'; // Import AuthProvider
 import 'providers/search_provider.dart'; // Import SearchProvider
+import 'providers/my_reviews_provider.dart'; // Import MyReviewsProvider
 import 'router/app_router.dart'; // Import AppRouter
 import 'api/api_service.dart'; // Import ApiService
 import 'services/local_notification_service.dart'; // Import LocalNotificationService
 import 'theme/constants.dart'; // Import theme constants
+import 'theme/custom_colors.dart'; // Import CustomColors
+import 'theme/app_themes.dart'; // Import các theme mới
 
 void main() async {
   WidgetsFlutterBinding
@@ -65,6 +68,8 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => MovieDetailProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(
+            create: (_) => MyReviewsProvider()), // Thêm MyReviewsProvider
+        ChangeNotifierProvider(
             create: (_) => SearchProvider()), // Thêm SearchProvider
         // DownloadsProvider phụ thuộc vào NotificationProvider và AuthProvider
         ChangeNotifierProxyProvider2<NotificationProvider, AuthProvider,
@@ -86,126 +91,67 @@ class _MyAppState extends State<MyApp> {
         final settingsProvider = Provider.of<SettingsProvider>(context);
         // Tạo AppRouter và truyền AuthProvider vào
         final appRouter = AppRouter(authProvider: authProvider);
-
-        // Xác định theme mode
-        ThemeMode themeMode;
-        switch (settingsProvider.themeMode) {
-          case AppThemeMode.light:
-            themeMode = ThemeMode.light;
-            break;
-          case AppThemeMode.dark:
-            themeMode = ThemeMode.dark;
-            break;
-          case AppThemeMode.system:
-            themeMode = ThemeMode.system;
-            break;
-        }
+        // Lấy theme được chọn từ provider
+        final selectedTheme = AppThemes.findById(settingsProvider.themeId);
 
         return MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: 'Flutter Movie App',
-          themeMode: themeMode,
+          // Luôn sử dụng theme tối và chỉ thay đổi dữ liệu của nó
+          themeAnimationDuration: const Duration(milliseconds: 500), // Thời gian chuyển đổi
+          themeAnimationCurve: Curves.easeInOut, // Kiểu chuyển đổi
+          themeMode: ThemeMode.dark,
           theme: ThemeData(
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: kLightBackgroundColor,
-            primaryColor: kPrimaryColor,
-            colorScheme: const ColorScheme.light(
-              primary: kPrimaryColor,
-              secondary: kPrimaryColorLight,
-              surface: kLightSurfaceColor,
-              background: kLightBackgroundColor,
-              onSurface: kDarkTextColor,
-              onBackground: kDarkTextColor,
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: selectedTheme.scaffoldColor,
+            primaryColor: selectedTheme.primaryColor,
+            colorScheme: ColorScheme.dark(
+              primary: selectedTheme.primaryColor,
+              secondary: selectedTheme.primaryColor.withOpacity(0.7),
+              surface: selectedTheme.surfaceColor,
+              background: selectedTheme.scaffoldColor,
+              onSurface: Colors.white,
+              onBackground: Colors.white,
             ),
             textTheme: const TextTheme(
               headlineSmall: TextStyle(
-                  color: kDarkTextColor,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 24),
               titleLarge: TextStyle(
-                  color: kDarkTextColor,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 20),
-              titleMedium: TextStyle(color: kDarkTextColor, fontSize: 16),
-              bodyMedium: TextStyle(color: kLightTextColor, fontSize: 14),
-              bodySmall: TextStyle(color: kLightTextColor, fontSize: 12),
+              titleMedium: TextStyle(color: Colors.white, fontSize: 16),
+              bodyMedium: TextStyle(color: Colors.white70, fontSize: 14),
+              bodySmall: TextStyle(color: Colors.white60, fontSize: 12),
               labelLarge: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16),
             ),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: kLightSurfaceColor,
-              elevation: 1,
-              iconTheme: IconThemeData(color: kDarkTextColor),
-              titleTextStyle: TextStyle(
-                  color: kDarkTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600),
-            ),
-            cardTheme: CardThemeData(
-              color: kLightCardColor,
-              elevation: 2,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-
-          // Dark Theme
-          darkTheme: ThemeData(
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: kDarkPurpleColor,
-            primaryColor: kPrimaryColor,
-            colorScheme: const ColorScheme.dark(
-              primary: kPrimaryColor,
-              secondary: kPrimaryColorLight,
-              surface: kLightPurpleColor,
-              background: kDarkPurpleColor,
-              onSurface: kSecondaryColor,
-              onBackground: kSecondaryColor,
-            ),
-            textTheme: const TextTheme(
-              headlineSmall: TextStyle(
-                  color: kSecondaryColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24),
-              titleLarge: TextStyle(
-                  color: kSecondaryColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20),
-              titleMedium: TextStyle(color: kSecondaryColor, fontSize: 16),
-              bodyMedium: TextStyle(color: kGreyColor, fontSize: 14),
-              bodySmall: TextStyle(color: kGreyColor, fontSize: 12),
-              labelLarge: TextStyle(
-                  color: kSecondaryColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16),
-            ),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: kDarkPurpleColor,
+            appBarTheme: AppBarTheme(
+              backgroundColor: selectedTheme.surfaceColor,
               elevation: 0,
-              iconTheme: IconThemeData(color: kSecondaryColor),
-              titleTextStyle: TextStyle(
-                  color: kSecondaryColor,
+              iconTheme: const IconThemeData(color: Colors.white),
+              titleTextStyle: const TextStyle(
+                  color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600),
             ),
             bottomNavigationBarTheme: BottomNavigationBarThemeData(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              selectedItemColor: kPrimaryColor,
-              unselectedItemColor: kGreyColor,
+              selectedItemColor: selectedTheme.primaryColor,
+              unselectedItemColor: Colors.grey,
               showUnselectedLabels: true,
               type: BottomNavigationBarType.fixed,
-              selectedLabelStyle:
-                  const TextStyle(color: kSecondaryColor, fontSize: 12),
+              selectedLabelStyle: const TextStyle(color: Colors.white, fontSize: 12),
               unselectedLabelStyle:
-                  const TextStyle(color: kGreyColor, fontSize: 12),
+                  const TextStyle(color: Colors.grey, fontSize: 12),
             ),
             cardTheme: CardThemeData(
-              color: kLightPurpleColor,
+              color: selectedTheme.surfaceColor,
               elevation: 2,
               clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
@@ -213,20 +159,35 @@ class _MyAppState extends State<MyApp> {
               ),
             ),
             chipTheme: ChipThemeData(
-              backgroundColor: kLightPurpleColor.withOpacity(0.5),
-              disabledColor: kLightPurpleColor,
-              selectedColor: kPrimaryColor,
+              backgroundColor: selectedTheme.surfaceColor.withOpacity(0.8),
+              disabledColor: selectedTheme.surfaceColor,
+              selectedColor: selectedTheme.primaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               labelStyle: const TextStyle(
-                  color: kGreyColor, fontWeight: FontWeight.bold),
+                  color: Colors.white70, fontWeight: FontWeight.bold),
               secondaryLabelStyle: const TextStyle(
-                  color: kSecondaryColor, fontWeight: FontWeight.bold),
+                  color: Colors.white, fontWeight: FontWeight.bold),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: const BorderSide(color: Colors.transparent),
               ),
             ),
+            // Thêm extension màu tùy chỉnh cho Dark Theme
+            extensions: <ThemeExtension<dynamic>>[
+              CustomColors(
+                  success: Colors.greenAccent[400],
+                  warning: Colors.orangeAccent[400],
+                  info: Colors.lightBlueAccent[400],
+                  shimmerBase: Colors.grey[850]!,
+                  shimmerHighlight: Colors.grey[800]!,
+                  subtitleStyle: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  )),
+            ],
           ),
+          darkTheme: null, // Không cần darkTheme riêng nữa
           routerConfig: appRouter.router,
         );
       }),

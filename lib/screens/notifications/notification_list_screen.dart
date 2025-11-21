@@ -101,6 +101,10 @@ class NotificationListScreen extends StatelessWidget {
       case NotificationType.actor:
         iconData = Icons.star_border_purple500_outlined;
         iconColor = Colors.amber;
+        break;
+      case NotificationType.reply:
+        iconData = Icons.comment_rounded;
+        iconColor = Colors.cyanAccent;
     }
 
     return Dismissible(

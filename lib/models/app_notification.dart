@@ -1,4 +1,4 @@
-enum NotificationType { download, comingSoon, trending, nowPlaying, system, actor }
+enum NotificationType { download, comingSoon, trending, nowPlaying, system, actor, reply }
 
 class AppNotification {
   final String id;

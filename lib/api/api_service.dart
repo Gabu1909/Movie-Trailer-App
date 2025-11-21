@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/genre.dart';
 import '../models/actor_detail.dart';
+import '../models/review.dart';
 import '../models/movie.dart';
 import '../models/cast.dart';
 import '../utils/exceptions.dart' as app_exceptions;
@@ -166,15 +167,33 @@ class ApiService {
 
   Future<Movie> getMovieDetail(int movieId) async {
     final response = await http.get(Uri.parse(
-        '${ApiConstants.baseUrl}/movie/$movieId?api_key=${ApiConstants.apiKey}&append_to_response=credits,recommendations,videos'));
+        '${ApiConstants.baseUrl}/movie/$movieId?api_key=${ApiConstants.apiKey}&append_to_response=credits,recommendations,videos,keywords'));
     if (response.statusCode == 200) {
-      final jsonData = json.decode(response.body);
-      if (jsonData['videos'] != null) {
-        print('🎥 Raw videos data: ${jsonData['videos']}');
-      }
-      return Movie.fromJson(jsonData);
+      // Chuyển tác vụ phân tích JSON nặng sang một Isolate khác để không chặn luồng UI.
+      // Movie.parse là hàm gọi Movie.fromJson, được tạo ra để tương thích với `compute`.
+      return await compute(Movie.parse, json.decode(response.body));
     } else {
-      throw Exception('Failed to load movie detail');
+      throw app_exceptions.ApiException('Failed to load movie detail',
+          statusCode: response.statusCode);
+    }
+  }
+
+  Future<List<Review>> getMovieReviews(int movieId) async {
+    final url =
+        '${ApiConstants.baseUrl}/movie/$movieId/reviews?api_key=${ApiConstants.apiKey}&language=en-US&page=1';
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List<dynamic> results = data['results'];
+      if (results.isEmpty) {
+        debugPrint('API Info: No reviews found for movie ID $movieId.');
+        return [];
+      }
+      return results.map((json) => Review.fromJson(json)).toList();
+    } else {
+      throw Exception(
+          'Failed to load reviews. Status code: ${response.statusCode}');
     }
   }
 
@@ -185,7 +204,8 @@ class ApiService {
       final data = json.decode(response.body);
       return Movie.fromJson(data);
     } else {
-      throw Exception('Failed to load TV show detail');
+      throw app_exceptions.ApiException('Failed to load TV show detail',
+          statusCode: response.statusCode);
     }
   }
 
@@ -216,6 +236,13 @@ class ApiService {
     }
   }
 
+// Hàm top-level để phân tích JSON trên một Isolate riêng biệt
+  List<Movie> _parseMovies(String responseBody) {
+    final decodedBody = json.decode(responseBody)['results'] as List;
+    // Sử dụng List.from để tạo một danh sách mới có thể thay đổi, tránh lỗi khi dùng map trực tiếp
+    return List<Movie>.from(decodedBody.map((movie) => Movie.parse(movie)));
+  }
+
   Future<List<Movie>> _getMovies(String url) async {
     try {
       final response =
@@ -223,8 +250,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         try {
-          final decodedBody = json.decode(response.body)['results'] as List;
-          return decodedBody.map((movie) => Movie.fromJson(movie)).toList();
+          // Sử dụng compute để chạy hàm _parseMovies trên một Isolate khác
+          return await compute(_parseMovies, response.body);
         } on FormatException catch (e) {
           debugPrint('JSON Parse Error: $e');
           throw app_exceptions.ParseException(

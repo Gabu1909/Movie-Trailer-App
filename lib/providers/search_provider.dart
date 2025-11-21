@@ -21,6 +21,13 @@ class SearchProvider with ChangeNotifier {
   List<Movie> get movies => _movies;
   List<Cast> get actors => _actors;
 
+  void clearResults() {
+    _query = '';
+    _movies = [];
+    _actors = [];
+    notifyListeners();
+  }
+
   void setSearchType(SearchType type) {
     if (_searchType != type) {
       _searchType = type;

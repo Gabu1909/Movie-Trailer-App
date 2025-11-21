@@ -31,6 +31,7 @@ class LocalNotificationService {
     required int id,
     required String title,
     required String body,
+    String? payload, // Thêm tham số payload tùy chọn
   }) async {
     const NotificationDetails notificationDetails = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -41,6 +42,7 @@ class LocalNotificationService {
       ),
     );
 
-    await _notificationsPlugin.show(id, title, body, notificationDetails);
+    await _notificationsPlugin.show(id, title, body, notificationDetails,
+        payload: payload);
   }
 }

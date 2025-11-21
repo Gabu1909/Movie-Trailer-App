@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_notification.dart';
 import '../models/cast.dart';
+import '../models/review.dart';
 import '../models/movie.dart';
 
 class NotificationProvider with ChangeNotifier {
@@ -115,6 +116,22 @@ class NotificationProvider with ChangeNotifier {
     addNotification(notification);
   }
 
+  // Hàm mới để tạo thông báo khi có người trả lời review
+  void addReplyNotification({
+    required Movie movie,
+    required Review originalReview,
+    required String replierName,
+  }) {
+    final notification = AppNotification(
+      id: 'reply_${movie.id}_${DateTime.now().millisecondsSinceEpoch}',
+      title: '💬 New Reply!',
+      body: '$replierName replied to your review on "${movie.title}".',
+      timestamp: DateTime.now(),
+      type: NotificationType.reply,
+      movieId: movie.id,
+    );
+    addNotification(notification);
+  }
   // Hàm này có thể được gọi từ bất cứ đâu để tạo thông báo hệ thống
   void addSystemNotification({required String id, required String title, required String body}) {
     final notification = AppNotification(

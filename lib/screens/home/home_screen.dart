@@ -7,11 +7,15 @@ import '../../providers/movie_provider.dart';
 import '../../widgets/lists/movie_list.dart';
 import '../../widgets/cards/trending_movie_card.dart'; // Import widget mới
 import '../../widgets/cards/trending_movie_card_placeholder.dart'; // Import placeholder
+import '../../widgets/cards/kids_movie_card.dart'; // Import mới
+import '../../widgets/cards/ranked_movie_card.dart'; // Import còn thiếu
+import '../../widgets/cards/cinematic_wide_card.dart'; // Import mới
 import '../../widgets/navigation/custom_app_bar.dart'; // Import CustomAppBar
 import '../../theme/constants.dart';
 import '../../models/genre.dart';
 import 'see_all_screen.dart';
 import '../../utils/ui_helpers.dart';
+import '../../widgets/text/section_header.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _initializePageController() {
     _pageController?.dispose();
     _pageController = PageController(
-      viewportFraction: 0.65,
+      viewportFraction: 0.70,
       initialPage: 10000,
     );
     _pageController!.addListener(() {
@@ -104,26 +108,32 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return AnimatedBuilder(
       animation: _bgController,
       builder: (context, child) {
         return Scaffold(
           key: _scaffoldKey,
           drawer: _buildDrawer(context),
-          body: Container(
+          body: AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: const [
-                  Color(0xFF0D0221),
-                  Color(0xFF240046),
-                  Color(0xFF3A0CA3),
-                  Color(0xFF5A189A),
-                ],
-                begin: _beginAlignmentAnimation.value,
-                end: _endAlignmentAnimation.value,
-                stops: const [0.0, 0.3, 0.7, 1.0],
+              color: isDarkMode ? null : Theme.of(context).scaffoldBackgroundColor,
+              gradient: isDarkMode
+                  ? LinearGradient(
+                      colors: const [
+                        Color(0xFF0D0221),
+                        Color(0xFF240046),
+                        Color(0xFF3A0CA3),
+                        Color(0xFF5A189A),
+                      ],
+                      begin: _beginAlignmentAnimation.value,
+                      end: _endAlignmentAnimation.value,
+                      stops: const [0.0, 0.3, 0.7, 1.0],
+                    )
+                  : null,
               ),
-            ),
             child: child,
           ),
         );
@@ -228,17 +238,128 @@ class _HomeScreenState extends State<HomeScreen>
                     _scaffoldKey.currentState?.openDrawer();
                   }),
                   _buildTrendingSection(context, provider),
-                  const SizedBox(height: 12),
-                  if (provider.topRatedMovies.isNotEmpty)
-                    MovieList(
-                        title: 'Top Rated', movies: provider.topRatedMovies),
-                  if (provider.kidsMovies.isNotEmpty)
-                    MovieList(
-                        title: 'Best for Kids', movies: provider.kidsMovies),
-                  if (provider.weeklyTrendingMovies.isNotEmpty)
-                    MovieList(
-                        title: 'Recommendations',
-                        movies: provider.weeklyTrendingMovies),
+                  const SizedBox(height: 24), // Tăng khoảng cách một chút
+
+                  // 1. TOP RATED (Màu Vàng Gold)
+                  if (provider.topRatedSorted.isNotEmpty) ...[
+                    const SizedBox(height: 10), // Khoảng cách nhỏ
+                    SectionHeader(
+                      title: 'Top Rated',
+                      accentColors: const [Color(0xFFFFD700), Color(0xFFFF8F00)], // Gradient Vàng Cam
+                      onSeeAll: () => context.push('/see-all', extra: {'title': 'Top Rated', 'movies': provider.topRatedSorted}),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 👇 Thay ListView bằng Column để xếp dọc
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0), // Padding 2 bên lề
+                      child: Column(
+                        children: provider.topRatedSorted
+                            .take(3) // 👈 CHỈ LẤY 3 PHIM ĐẦU TIÊN
+                            .toList()
+                            .asMap()
+                            .entries
+                            .map((entry) {
+                          int index = entry.key;
+                          var movie = entry.value;
+                          return RankedMovieCard(
+                            movie: movie,
+                            index: index,
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 30),
+
+                  // 2. BEST FOR KIDS (Màu Neon Cyan-Pink)
+                  if (provider.kidsMovies.isNotEmpty) ...[
+                    SectionHeader(
+                      title: 'Best for Kids',
+                      accentColors: const [Colors.cyanAccent, Colors.pinkAccent], // Gradient Xanh Hồng
+                      onSeeAll: () => context.push('/see-all', extra: {'title': 'Best for Kids', 'movies': provider.kidsMovies}),
+                    ),
+                    const SizedBox(height: 16),
+                    ShaderMask(
+                      shaderCallback: (bounds) {
+                        return LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: <Color>[
+                            Colors.white.withOpacity(0.0),
+                            Colors.white,
+                            Colors.white,
+                            Colors.white.withOpacity(0.0)
+                          ],
+                          stops: const [0.0, 0.05, 0.95, 1.0],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: SizedBox(
+                        height:
+                            260, // Tăng chiều cao cho thẻ Kids mới (vì có shadow và viền)
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: provider.kidsMovies.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12.0),
+                              child: KidsMovieCard(
+                                  movie: provider.kidsMovies[index]),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 30),
+
+                  // 3. RECOMMENDATIONS (Màu Tím Xanh)
+                  if (provider.weeklyTrendingMovies.isNotEmpty) ...[
+                    SectionHeader(
+                      title: 'Recommendations',
+                      accentColors: const [Color(0xFFD96FF8), Color(0xFF40C9FF)], // Gradient Tím Xanh
+                      onSeeAll: () => context.push('/see-all', extra: {'title': 'Recommendations', 'movies': provider.weeklyTrendingMovies}),
+                    ),
+                    const SizedBox(height: 16),
+                    ShaderMask(
+                      shaderCallback: (bounds) {
+                        return LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: <Color>[
+                            Colors.white.withOpacity(0.0),
+                            Colors.white,
+                            Colors.white,
+                            Colors.white.withOpacity(0.0)
+                          ],
+                          stops: const [0.0, 0.05, 0.95, 1.0],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: SizedBox(
+                        height: 250, // Chiều cao cho thẻ Cinematic (Backdrop)
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: provider.weeklyTrendingMovies.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12.0),
+                              child: CinematicWideCard(
+                                  movie: provider
+                                      .weeklyTrendingMovies[index]), // 🔥 Dùng Widget mới
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 30),
                 ],
               ),
@@ -768,63 +889,134 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // Widget cho toàn bộ phần "Trending" (Carousel + Tabs)
+  // Widget cho toàn bộ phần "Trending"
   Widget _buildTrendingSection(BuildContext context, MovieProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tiêu đề "Lets Explore" và "Trending"
+        // --- PHẦN TIÊU ĐỀ MỚI ---
         Padding(
-          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1. Subtitle "LETS EXPLORE"
               Text(
-                'Lets Explore',
-                style: Theme.of(context).textTheme.bodySmall,
+                'LETS EXPLORE', // Viết hoa toàn bộ
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2.0, // Giãn chữ rộng ra cho sang
+                ),
               ),
+
               const SizedBox(height: 4),
+
+              // 2. Title "TRENDING" + Icon + See All
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        color: Colors.white.withOpacity(0.05),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              'TRENDING',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.trending_up_rounded, // Icon giống mũi tên
-                              color: kGreyColor,
-                              size: 20,
-                            )
-                          ],
-                        ),
+                  // Chữ TRENDING với hiệu ứng Gradient Text
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [
+                        Colors.white,
+                        Color(0xFFFF006E), // Màu hồng neon
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ).createShader(bounds),
+                    child: const Text(
+                      'TRENDING',
+                      style: TextStyle(
+                        color: Colors.white, // Màu nền cho shader
+                        fontSize: 35, // Tăng kích thước lên to hẳn
+                        fontWeight: FontWeight.w900, // Siêu đậm
+                        height: 1.0,
+                        fontStyle: FontStyle.italic, // Nghiêng cho động
+                        shadows: [
+                          // Bóng hồng nhẹ xung quanh
+                          Shadow(
+                            color: Color(0xFFFF006E),
+                            blurRadius: 20,
+                            offset: Offset(0, 0),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+
+                  const SizedBox(width: 8),
+
+                  // Icon mũi tên đi lên (Cũng phát sáng)
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF006E).withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.trending_up_rounded,
+                      color: Color(0xFFFF006E),
+                      size: 24,
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Nút See All (Đã làm đẹp ở bước trước)
+                  // 👇 NÚT SEE ALL MỚI (STYLE NEON)
                   GestureDetector(
                     onTap: () {
                       context.push('/see-all', extra: {
                         'title': 'Trending',
-                        'movies': provider
-                            .trendingMovies // Dùng danh sách trending hiện tại
+                        'movies': provider.trendingMovies
                       });
                     },
-                    child: Text(
-                      'See All',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        // Nền hồng rất nhạt (Glass tint)
+                        color: const Color(0xFFFF006E).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        // Viền hồng neon
+                        border: Border.all(
+                          color: const Color(0xFFFF006E).withOpacity(0.5),
+                          width: 1,
+                        ),
+                        // Hiệu ứng phát sáng nhẹ (Glow)
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF006E).withOpacity(0.25),
+                            blurRadius: 12,
+                            spreadRadius: -2,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'See All',
+                            style: TextStyle(
+                              color: Color(0xFFFF006E), // Chữ màu hồng neon
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800, // Đậm hơn
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          // Icon mũi tên nhỏ
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Color(0xFFFF006E),
+                            size: 14,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -960,7 +1152,7 @@ class _HomeScreenState extends State<HomeScreen>
               context.watch<MovieProvider>().selectedGenreIndex == index;
 
           return Padding(
-            padding: const EdgeInsets.only(right: 12.0),
+            padding: const EdgeInsets.only(right: 24.0),
             child: ChoiceChip(
               label: Text(genre.name),
               selected: isSelected,

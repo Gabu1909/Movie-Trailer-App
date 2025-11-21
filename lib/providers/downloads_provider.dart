@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../models/app_notification.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -78,52 +79,18 @@ class DownloadsProvider with ChangeNotifier {
     final downloadedData =
         await _dbHelper.getDownloadedMoviesWithPaths(_currentUserId!);
 
-    print('📊 Loading downloads: ${downloadedData.length} items from DB');
+    // Chuyển việc xử lý dữ liệu nặng sang một Isolate khác
+    final processedData = await compute(_processDownloadedData, downloadedData);
 
-    _downloadedMovies.clear();
+    // Cập nhật trạng thái của provider với dữ liệu đã xử lý
+    _downloadedMovies = processedData['movies'] as List<Movie>;
     _filePaths.clear();
     _statuses.clear();
-
-    for (var data in downloadedData) {
-      final movie = Movie.fromMap(data);
-
-      // IMPORTANT: Nếu trailerKey null (movies cũ), fetch từ API
-      Movie finalMovie = movie;
-      if (movie.trailerKey == null || movie.trailerKey!.isEmpty) {
-        print(
-            '⚠️ Movie ${movie.id} (${movie.title}) missing trailerKey, fetching from API...');
-        try {
-          final apiService = ApiService();
-          final movieDetail = await apiService.getMovieDetail(movie.id);
-
-          if (movieDetail.trailerKey != null &&
-              movieDetail.trailerKey!.isNotEmpty) {
-            print('✅ Found trailerKey: ${movieDetail.trailerKey}');
-            // Update movie với trailerKey mới
-            finalMovie = movie.copyWith(trailerKey: movieDetail.trailerKey);
-
-            // Lưu lại vào database
-            if (_currentUserId != null) {
-              await _dbHelper.saveMovie(finalMovie, _currentUserId!);
-            }
-          } else {
-            print('⚠️ No trailerKey found in API response');
-          }
-        } catch (e) {
-          print('❌ Failed to fetch trailerKey for movie ${movie.id}: $e');
-        }
-      }
-
-      // Kiểm tra duplicate trước khi add
-      if (!_downloadedMovies.any((m) => m.id == finalMovie.id)) {
-        _downloadedMovies.add(finalMovie);
-      } else {
-        print(
-            '⚠️ Duplicate movie detected in DB: ${finalMovie.id} - ${finalMovie.title}');
-      }
-      _filePaths[finalMovie.id] = data['filePath'] as String;
-      _statuses[finalMovie.id] = DownloadStatus.Downloaded;
-    }
+    _downloadedMovies.forEach((movie) {
+      _filePaths[movie.id] =
+          (processedData['filePaths'] as Map<int, String>)[movie.id]!;
+      _statuses[movie.id] = DownloadStatus.Downloaded;
+    });
 
     print('✅ Loaded ${_downloadedMovies.length} unique downloaded movies');
     notifyListeners();
@@ -238,9 +205,11 @@ class DownloadsProvider with ChangeNotifier {
 
       // Hiển thị thông báo cục bộ
       await LocalNotificationService.showNotification(
-        id: movie.id,
-        title: 'Download Complete',
-        body: '"${movie.title}" has been downloaded successfully.',
+        id: movie.id, // Sử dụng ID của phim làm ID thông báo
+        title: 'Download Success!',
+        body: '"${movie.title}" is ready to watch offline.',
+        payload:
+            'movie/${movie.id}', // Payload để mở lại màn hình chi tiết khi nhấn vào
       );
     } on DioException catch (e) {
       // Nếu lỗi là do người dùng chủ động hủy (tạm dừng) thì không làm gì cả
@@ -327,4 +296,32 @@ class DownloadsProvider with ChangeNotifier {
     _currentUserId = null;
     notifyListeners();
   }
+}
+
+// Hàm top-level để xử lý dữ liệu tải về trên một Isolate riêng
+Map<String, dynamic> _processDownloadedData(
+    List<Map<String, dynamic>> downloadedData) {
+  final List<Movie> movies = [];
+  final Map<int, String> filePaths = {};
+
+  print(
+      'Compute Isolate: Processing ${downloadedData.length} downloaded items.');
+
+  for (var data in downloadedData) {
+    // Movie.fromMap là tác vụ nhẹ, có thể chạy ở đây
+    final movie = Movie.fromMap(data);
+
+    // Kiểm tra duplicate trước khi thêm
+    if (!movies.any((m) => m.id == movie.id)) {
+      movies.add(movie);
+      filePaths[movie.id] = data['filePath'] as String;
+    } else {
+      print('Compute Isolate: Duplicate movie detected: ${movie.id}');
+    }
+  }
+
+  return {
+    'movies': movies,
+    'filePaths': filePaths,
+  };
 }

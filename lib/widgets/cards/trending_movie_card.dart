@@ -1,153 +1,151 @@
+import 'dart:math' as math;
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Thêm import cho SystemSound
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../api/api_constants.dart';
 import '../../models/movie.dart';
 import '../../providers/favorites_provider.dart';
 import '../../theme/constants.dart';
-import '../../services/feedback_service.dart'; // Import service mới
+// import '../../services/feedback_service.dart'; // Import nếu có
 
 class TrendingMovieCard extends StatelessWidget {
   final Movie movie;
   final bool isCenterItem;
-  final double scrollOffset; // Tham số mới cho hiệu ứng parallax
+  final double scrollOffset;
 
   const TrendingMovieCard({
     super.key,
     required this.movie,
     this.isCenterItem = false,
-    this.scrollOffset = 0.0, // Giá trị mặc định
+    this.scrollOffset = 0.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Hiệu ứng phóng to/thu nhỏ
-    final double scale = (1 - (scrollOffset.abs() * 0.2)).clamp(0.8, 1.0);
-    // Hiệu ứng mờ (opacity) - thay đổi mượt mà
-    final double opacity = (1 - (scrollOffset.abs() * 0.4)).clamp(0.2, 1.0);
-    // Hiệu ứng tối (dim) - thay đổi mượt mà
-    final double dim = (scrollOffset.abs() * 0.5).clamp(0.0, 0.5);
+    // --- TINH CHỈNH LẠI THÔNG SỐ CHO MƯỢT ---
+
+    // Scale: Bên cạnh chỉ nhỏ hơn 1 chút (0.9) thay vì nhỏ xíu (0.8)
+    // Điều này giúp lấp đầy khoảng trống, nhìn đỡ bị "lọt thỏm"
+    final double scale = (1 - (scrollOffset.abs() * 0.1)).clamp(0.9, 1.0);
+
+    // Opacity: Bên cạnh mờ vừa phải (0.5) để vẫn thấy được hình
+    final double opacity = (1 - (scrollOffset.abs() * 0.4)).clamp(0.6, 1.0);
+
+    // Rotation: Giảm góc xoay xuống để đỡ bị méo hình
+    final double rotation = scrollOffset * -0.03 * math.pi;
+
+    // Dịch chuyển: Kéo các thẻ lại gần nhau hơn khi scale nhỏ lại
+    final double translateX = scrollOffset * 10;
 
     return GestureDetector(
       onTap: () {
         context.push('/movie/${movie.id}',
             extra: {'heroTag': 'trending_poster_${movie.id}'});
-        FeedbackService.playSound(context);
-        FeedbackService.lightImpact(context);
       },
-      child: AnimatedScale(
-        scale: scale,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutCubic,
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateY(rotation)
+          ..translate(translateX)
+          ..scale(scale),
         child: Opacity(
           opacity: opacity,
           child: Hero(
-            // <--- Hero now wraps the entire card visual
             tag: 'trending_poster_${movie.id}',
             child: Stack(
               alignment: Alignment.topRight,
               children: [
                 Container(
+                  // 🔥 GIẢM MARGIN NGANG: Để các thẻ sát nhau hơn
                   margin:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    boxShadow: isCenterItem
-                        ? [
-                            BoxShadow(
-                              color: Colors.pinkAccent.withOpacity(0.6),
-                              blurRadius: 30,
-                              spreadRadius: 20,
-                            ),
-                          ]
-                        : [],
+                    boxShadow: [
+                      // Bóng đổ động
+                      BoxShadow(
+                        color: isCenterItem
+                            ? Colors.pinkAccent
+                                .withOpacity(0.5) // Bóng hồng khi ở giữa
+                            : Colors.black
+                                .withOpacity(0.3), // Bóng đen khi ở bên
+                        blurRadius: isCenterItem ? 25 : 10,
+                        spreadRadius: isCenterItem ? 2 : 0,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
+                        // 1. Poster
                         if (movie.posterPath != null)
-                          Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.identity()
-                              ..setEntry(3, 2, 0.001) // Thêm perspective
-                              ..rotateY(
-                                  scrollOffset * -0.5) // Xoay theo chiều Y
-                              ..scale(isCenterItem
-                                  ? 1.0
-                                  : 0.95), // Scale nhẹ khi không ở trung tâm
-                            child: CachedNetworkImage(
-                              imageUrl:
-                                  '${ApiConstants.imageBaseUrlW780}${movie.posterPath}', // TỐI ƯU: Dùng ảnh w780 thay vì original
-                              fit: BoxFit.cover,
-                              filterQuality:
-                                  FilterQuality.high, // ✅ ảnh sắc nét hơn
-                              // Tối ưu: Tính toán kích thước cache hợp lý
-                              memCacheWidth: (400 * (MediaQuery.of(context).devicePixelRatio)).round(),
-                              memCacheHeight: (600 * (MediaQuery.of(context).devicePixelRatio)).round(),
-                              fadeInDuration: const Duration(milliseconds: 300),
-                              placeholder: (context, url) => const Center(
-                                child: CircularProgressIndicator(
-                                    color: kPrimaryColor),
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  const Center(child: Icon(Icons.movie)),
+                          CachedNetworkImage(
+                            imageUrl:
+                                '${ApiConstants.imageBaseUrlW780}${movie.posterPath}',
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: const Color(0xFF251642),
                             ),
+                            errorWidget: (context, url, error) =>
+                                const Center(child: Icon(Icons.movie)),
                           )
                         else
-                          const Center(child: Icon(Icons.movie)),
+                          Container(color: Colors.grey[900]),
+
+                        // 2. Lớp phủ tối (Dim) - Nhẹ nhàng hơn
                         Container(
-                          color: Colors.black.withOpacity(dim),
+                          color: Colors.black.withOpacity(
+                              (scrollOffset.abs() * 0.3).clamp(0.0, 0.5)),
+                        ),
+
+                        // 3. Specular Highlight (Vệt sáng chéo)
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.1),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.4],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                // Nút Favorite (đặt ngoài Hero để nó không bị animate cùng thẻ)
+
+                // Nút Favorite
                 Positioned(
-                  top: 30,
-                  right: 24,
+                  top: 25, // Đẩy lên cao xíu
+                  right: 20,
                   child: Consumer<FavoritesProvider>(
                     builder: (context, provider, child) {
                       final isFavorite = provider.isFavorite(movie.id);
                       return GestureDetector(
-                        // Haptic feedback and sound are handled by the IconButton in MovieDetailScreen
-                        onTap: () {
-                          FeedbackService.playSound(context);
-                          FeedbackService.lightImpact(context);
-                          provider.toggleFavorite(movie);
-                        },
+                        onTap: () => provider.toggleFavorite(movie),
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: isFavorite
-                                ? Colors.pinkAccent.withOpacity(0.8)
+                                ? Colors.pinkAccent.withOpacity(0.9)
                                 : Colors.black.withOpacity(0.3),
                             shape: BoxShape.circle,
-                            boxShadow: isFavorite
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.pinkAccent.withOpacity(0.6),
-                                      blurRadius: 8,
-                                      spreadRadius: 2,
-                                    ),
-                                  ]
-                                : [],
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.2), width: 1),
                           ),
-                          child: AnimatedScale(
-                            duration: const Duration(milliseconds: 300),
-                            scale: isFavorite ? 1.3 : 1.0,
-                            curve: Curves.elasticOut,
-                            child: Icon(
-                              isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: Colors.white,
-                              size: 20,
-                            ),
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: Colors.white,
+                            size: 20,
                           ),
                         ),
                       );

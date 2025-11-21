@@ -29,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // --- Khởi tạo cho hiệu ứng mưa sao băng ---
     _particleController = AnimationController(
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 10),
       vsync: this,
     )..repeat();
 
@@ -58,16 +58,13 @@ class _SplashScreenState extends State<SplashScreen>
     _logoController.forward();
     _audioPlayer.play(AssetSource('sounds/logo_swoosh.mp3'));
 
-    // Đợi cả animation và việc tải dữ liệu hoàn tất trước khi điều hướng.
-    // Điều này đảm bảo splash screen hiển thị đủ lâu.
-    Future.wait([
-      // Đợi một khoảng thời gian tối thiểu để animation chạy xong.
-      Future.delayed(const Duration(milliseconds: 2500)),
-      // Đợi provider hoàn tất việc khởi tạo dữ liệu.
-      context.read<MovieProvider>().initializationComplete,
-    ]).then((_) {
-      // Sau khi cả hai hoàn tất, điều hướng đến trang chủ.
-      if (mounted) context.go('/login');
+    // Chỉ đợi một khoảng thời gian cố định để animation hiển thị,
+    // không chờ việc tải dữ liệu ở đây để tránh làm khựng UI.
+    // Việc tải dữ liệu đã được MovieProvider tự động thực hiện ở dưới nền.
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (mounted) {
+        context.go('/login');
+      }
     });
   }
 

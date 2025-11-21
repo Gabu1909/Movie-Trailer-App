@@ -59,6 +59,13 @@ class MovieProvider with ChangeNotifier, WidgetsBindingObserver {
   List<int> get selectedDrawerGenreIds => _selectedDrawerGenreIds;
   List<String> get selectedCountries => _selectedCountries;
 
+  // Getter mới để luôn trả về danh sách đã sắp xếp
+  List<Movie> get topRatedSorted {
+    final list = [..._topRatedMovies]; // Tạo bản sao để không ảnh hưởng list gốc
+    list.sort((a, b) => b.voteAverage.compareTo(a.voteAverage));
+    return list;
+  }
+
   // Completer để báo hiệu khi quá trình khởi tạo hoàn tất
   final Completer<void> _initializationCompleter = Completer<void>();
   Future<void> get initializationComplete => _initializationCompleter.future;

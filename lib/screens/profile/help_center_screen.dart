@@ -19,23 +19,16 @@ class HelpCenterScreen extends StatefulWidget {
 }
 
 class _HelpCenterScreenState extends State<HelpCenterScreen> {
-  // Trạng thái cho chip đang được chọn
   int _selectedChipIndex = 0;
   final List<String> _chipLabels = ['General', 'Account', 'Service', 'Video'];
 
-  // Dữ liệu FAQ được tổ chức theo danh mục
   final Map<String, List<FaqItem>> _allFaqs = {
     'General': [
       FaqItem(
         question: 'What is PuTa Movies?',
         answer:
-            'PuTa Movies is your ultimate destination for streaming movies and TV shows. We offer a vast library of content, from the latest blockbusters to timeless classics, available on demand.',
+            'PuTa Movies is your ultimate destination for streaming movies and TV shows. We offer a vast library of content available on demand.',
         isExpanded: true,
-      ),
-      FaqItem(
-        question: 'How do I manage my Watchlist?',
-        answer:
-            'You can add movies to your Watchlist by tapping the bookmark icon on any movie detail page. To remove an item, simply tap the icon again. You can view your full list from the "My List" tab.',
       ),
       FaqItem(
         question: 'Is PuTa Movies free to use?',
@@ -45,48 +38,33 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     ],
     'Account': [
       FaqItem(
-        question: 'How do I create an account?',
-        answer:
-            'You can create an account by clicking on the "Profile" tab and selecting the "Sign Up" option. Follow the on-screen instructions to complete your registration.',
-      ),
-      FaqItem(
         question: 'How do I reset my password?',
         answer:
-            'If you have forgotten your password, you can reset it by going to the login screen and tapping "Forgot Password". You will receive an email with instructions on how to set a new password.',
+            'Go to Profile > Security > Change Password. If you forgot it, use the "Forgot Password" link on the login screen.',
       ),
       FaqItem(
-        question: 'How can I update my profile information?',
+        question: 'Can I change my email address?',
         answer:
-            'You can update your name, email, and other personal details by navigating to "Profile" and selecting "Edit Profile".',
+            'Currently, email addresses are linked to your account ID and cannot be changed directly. Please contact support.',
       ),
     ],
     'Service': [
       FaqItem(
         question: 'How does the recommendation system work?',
         answer:
-            'Our recommendation system analyzes your viewing history and liked movies to suggest content that you might enjoy. The more you watch, the better the recommendations become.',
-      ),
-      FaqItem(
-        question: 'How can I report a problem with the service?',
-        answer:
-            'If you encounter any issues, please use the "Contact Us" tab in the Help Center. You can reach out to our support team via email or live chat for assistance.',
+            'Our AI analyzes your viewing history and liked movies to suggest content that fits your taste.',
       ),
     ],
     'Video': [
       FaqItem(
-        question: 'Why is the video buffering or not playing?',
+        question: 'How can I change video quality?',
         answer:
-            'Buffering issues are often caused by a slow or unstable internet connection. Please check your network speed. If the problem persists, try restarting the app or your device.',
+            'Tap the settings icon in the video player or go to App Settings > Download Quality to set default preferences.',
       ),
       FaqItem(
-        question: 'How can I change the video quality?',
+        question: 'Why is my video buffering?',
         answer:
-            'Video quality options are available in the player settings. You can choose from different resolutions depending on your internet connection and device capabilities.',
-      ),
-      FaqItem(
-        question: 'How do I enable or change subtitles?',
-        answer:
-            'You can enable, disable, or change the language of subtitles from the video player controls. Look for the subtitle or "CC" icon to access these options.',
+            'Buffering is usually caused by slow internet. Check your connection or try lowering the video quality.',
       ),
     ],
   };
@@ -101,31 +79,34 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sử dụng TabController để quản lý 2 tab
     return DefaultTabController(
-      length: 2, // "FAQ" và "Contact us"
+      length: 2,
       child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: _buildAppBar(context),
         body: Container(
-          // Nền gradient đồng nhất
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF12002F), Color(0xFF3A0CA3), Color(0xFF7209B7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+          decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              gradient: Theme.of(context).brightness == Brightness.dark
+                  ? const LinearGradient(
+                      colors: [
+                          Color(0xFF12002F),
+                          Color(0xFF2A0955),
+                          Color(0xFF12002F)
+                        ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    )
+                  : null),
           child: SafeArea(
             child: Column(
               children: [
-                _buildAppBar(context),
+                const SizedBox(height: 10),
                 _buildTabBar(),
-                // Nội dung của các Tab
                 Expanded(
                   child: TabBarView(
                     children: [
-                      // Tab 1: FAQ
                       _buildFaqTab(),
-                      // Tab 2: Contact Us (Placeholder)
                       _buildContactUsTab(),
                     ],
                   ),
@@ -138,72 +119,64 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
-  // Widget AppBar
-  Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Nút quay lại
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new,
-                    color: Colors.white70, size: 20),
-                onPressed: () => context.pop(),
-              ),
-            ),
-          ),
-          // Tiêu đề
-          const Text(
-            'Help Center',
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          // Nút menu (ba chấm)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.more_horiz,
-                    color: Colors.white70, size: 20),
-                onPressed: () {
-                  // Action for menu button (e.g., show a popup menu)
-                },
-              ),
-            ),
-          ),
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: true,
+      title: const Text(
+        'Help Center',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+      leading: Container(
+        margin: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              size: 18, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: TabBar(
+        indicator: BoxDecoration(
+          color: Colors.pinkAccent,
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.pinkAccent.withOpacity(0.4),
+                blurRadius: 10,
+                offset: const Offset(0, 2)),
+          ],
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        dividerColor: Colors.transparent,
+        tabs: const [
+          Tab(text: 'FAQ'),
+          Tab(text: 'Contact Us'),
         ],
       ),
     );
   }
 
-  // Widget cho TabBar (FAQ / Contact us)
-  Widget _buildTabBar() {
-    return const TabBar(
-      tabs: [
-        Tab(text: 'FAQ'),
-        Tab(text: 'Contact us'),
-      ],
-      labelColor: Colors.pinkAccent, // Màu text của tab được chọn
-      unselectedLabelColor: Colors.white70, // Màu text tab không được chọn
-      indicatorColor: Colors.pinkAccent, // Màu vạch chân
-      indicatorWeight: 3.0,
-      labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-    );
-  }
+  // --- FAQ TAB ---
 
-  // Widget cho nội dung Tab FAQ
   Widget _buildFaqTab() {
     return ListView(
       padding: const EdgeInsets.all(20.0),
@@ -217,38 +190,43 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
-  // Widget cho các Chip lọc
   Widget _buildCategoryChips() {
     return SizedBox(
-      height: 40,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _chipLabels.length,
         itemBuilder: (context, index) {
           bool isSelected = _selectedChipIndex == index;
-          return ChoiceChip(
-            label: Text(_chipLabels[index]),
-            selected: isSelected,
-            onSelected: (selected) {
+          return GestureDetector(
+            onTap: () {
               setState(() {
-                _selectedChipIndex = selected ? index : 0; // Default to General
-                // Cập nhật danh sách FAQ được lọc
-                _filteredFaqs = _allFaqs[_chipLabels[_selectedChipIndex]] ?? [];
+                _selectedChipIndex = index;
+                _filteredFaqs = _allFaqs[_chipLabels[index]] ?? [];
               });
             },
-            labelStyle: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-            backgroundColor: Colors.transparent,
-            selectedColor: Colors.pinkAccent, // Nền hồng khi được chọn
-            shape: const StadiumBorder(
-              side: BorderSide(
-                color: Colors.pinkAccent, // Viền hồng
-                width: 1.5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.pinkAccent
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? Colors.pinkAccent
+                      : Colors.white.withOpacity(0.1),
+                ),
+              ),
+              child: Text(
+                _chipLabels[index],
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
           );
         },
         separatorBuilder: (context, index) => const SizedBox(width: 10),
@@ -256,69 +234,70 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     );
   }
 
-  // Widget cho thanh tìm kiếm
   Widget _buildSearchBar() {
-    return TextField(
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: 'Search',
-        hintStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: const Icon(Icons.search, color: Colors.white70),
-        suffixIcon:
-            const Icon(Icons.tune, color: Colors.white70), // Icon bộ lọc
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.pinkAccent),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: TextField(
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search Topics',
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+          prefixIcon: const Icon(Icons.search, color: Colors.white54),
+          suffixIcon: const Icon(Icons.tune_rounded, color: Colors.white54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
     );
   }
 
-  // Widget cho danh sách FAQ (dùng ExpansionTile)
   Widget _buildFaqList() {
     return Column(
       children: _filteredFaqs.map((item) {
-        return Card(
-          color: Colors.white.withOpacity(0.1),
+        return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          clipBehavior: Clip.antiAlias, // Để bo góc nội dung bên trong
-          child: ExpansionTile(
-            key: PageStorageKey(item.question), // Giữ trạng thái khi cuộn
-            initiallyExpanded: item.isExpanded,
-            title: Text(
-              item.question,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-            // Đổi icon mũi tên thành màu đỏ
-            iconColor: Colors.pinkAccent,
-            collapsedIconColor: Colors.pinkAccent,
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            children: [
-              Text(
-                item.answer,
-                style: const TextStyle(color: Colors.white70, height: 1.5),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              key: PageStorageKey(item.question),
+              initiallyExpanded: item.isExpanded,
+              title: Text(
+                item.question,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15),
               ),
-            ],
-            onExpansionChanged: (bool expanded) {
-              setState(() {
-                item.isExpanded = expanded;
-              });
-            },
+              iconColor: Colors.pinkAccent,
+              collapsedIconColor: Colors.white54,
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(
+                  item.answer,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      height: 1.5,
+                      fontSize: 14),
+                ),
+              ],
+            ),
           ),
         );
       }).toList(),
     );
   }
 
-  // Widget cho nội dung Tab Contact Us
+  // --- CONTACT US TAB ---
+
   Widget _buildContactUsTab() {
     return Padding(
       padding: const EdgeInsets.all(20.0),
@@ -326,65 +305,109 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Need more help? Reach out to us!',
+            'How can we help you?',
             style: TextStyle(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 20),
-          _buildContactInfoItem(
-            icon: Icons.email,
+          const SizedBox(height: 8),
+          Text(
+            'Our team is available 24/7 to assist you.',
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          _buildContactItem(
+            icon: Icons.headset_mic_rounded,
+            color: Colors.pinkAccent,
+            title: 'Customer Service',
+            subtitle: 'Available 24/7',
+            onTap: () {},
+          ),
+          const SizedBox(height: 12),
+          _buildContactItem(
+            icon: Icons.email_rounded,
+            color: Colors.blueAccent,
             title: 'Email Support',
             subtitle: 'support@putamovies.com',
-            onTap: () {
-              // TODO: Implement email client launch
-            },
+            onTap: () {},
           ),
-          _buildContactInfoItem(
-            icon: Icons.phone,
-            title: 'Phone Support',
-            subtitle: '+1 (555) 123-4567',
-            onTap: () {
-              // TODO: Implement phone dialer launch
-            },
-          ),
-          _buildContactInfoItem(
-            icon: Icons.chat,
+          const SizedBox(height: 12),
+          _buildContactItem(
+            icon: Icons.chat_bubble_rounded,
+            color: Colors.greenAccent,
             title: 'Live Chat',
-            subtitle: 'Chat with our support team 24/7',
-            onTap: () {
-              // TODO: Implement live chat functionality
-            },
+            subtitle: 'Start a conversation',
+            onTap: () {},
           ),
-          const SizedBox(height: 30),
-          const Text(
-            'Our team is available to assist you with any questions or issues you may have.',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 12),
+          _buildContactItem(
+            icon: Icons.web_rounded,
+            color: Colors.purpleAccent,
+            title: 'Website',
+            subtitle: 'www.putamovies.com',
+            onTap: () {},
           ),
         ],
       ),
     );
   }
 
-  Widget _buildContactInfoItem({
+  Widget _buildContactItem({
     required IconData icon,
+    required Color color,
     required String title,
     required String subtitle,
-    VoidCallback? onTap,
+    required VoidCallback onTap,
   }) {
-    return Card(
-      color: Colors.white.withOpacity(0.1),
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.pinkAccent, size: 30),
-        title: Text(title,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white70)),
-        trailing: const Icon(Icons.arrow_forward_ios,
-            color: Colors.white54, size: 16),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.5), fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  color: Colors.white.withOpacity(0.3), size: 16),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -5,6 +5,9 @@ class ApiConstants {
   static const String imageBaseUrlW780 = "https://image.tmdb.org/t/p/w780";
   static const String imageBaseUrlOriginal =
       "https://image.tmdb.org/t/p/original";
+  
+  static const String imageBaseUrlW500 = "https://image.tmdb.org/t/p/w500";
+  static const String imageBaseUrlW700 = "https://image.tmdb.org/t/p/w700";
 }
 
 class ApiNewsConstants {

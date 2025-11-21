@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:animations/animations.dart'; // Import package animations
 import '../providers/auth_provider.dart';
 import '../models/movie.dart';
 import '../models/cast.dart';
 import '../screens/favorites/favorites_screen.dart';
+import '../screens/movie/see_all_reviews_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/shared/main_wrapper.dart';
 import '../screens/movie/movie_detail_screen.dart';
@@ -12,10 +14,12 @@ import '../screens/home/see_all_screen.dart';
 import '../screens/favorites/my_list_see_all_screen.dart';
 import '../screens/player/local_video_player_screen.dart';
 import '../screens/player/youtube_player_screen.dart';
+import '../models/review.dart';
 import '../screens/actor/actor_detail_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/notification_setting_screen.dart';
+import '../screens/profile/my_reviews_screen.dart';
 import '../screens/notifications/notification_list_screen.dart';
 import '../screens/profile/help_center_screen.dart';
 import '../screens/shared/login_screen.dart';
@@ -25,6 +29,8 @@ import '../screens/profile/security_screen.dart';
 import '../screens/profile/change_password_screen.dart';
 import '../screens/coming_soon/coming_soon_screen.dart'; // Đường dẫn đúng
 import '../screens/explore_news/explore_screen.dart';
+
+import 'page_transitions.dart'; // Import file transition mới
 
 class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -122,11 +128,33 @@ class AppRouter {
             // ========== DETAIL SCREENS ==========
             GoRoute(
               path: '/movie/:id',
-              builder: (context, state) {
+              pageBuilder: (context, state) {
                 final movieId = int.parse(state.pathParameters['id']!);
                 final extra = state.extra as Map<String, dynamic>?;
-                final heroTag = extra?['heroTag'] as String?;
-                return MovieDetailScreen(movieId: movieId, heroTag: heroTag);
+                final heroTag =
+                    extra?['heroTag'] as String?; // Lấy heroTag từ extra
+                final scrollToMyReview =
+                    extra?['scrollToMyReview'] as bool? ?? false; // Lấy cờ cuộn
+                return PageTransitions.buildSharedAxisTransition(
+                  context: context,
+                  state: state,
+                  transitionType:
+                      SharedAxisTransitionType.scaled, // Dùng Z-axis
+                  child: MovieDetailScreen(
+                    movieId: movieId,
+                    heroTag: heroTag,
+                    scrollToMyReview: scrollToMyReview,
+                  ),
+                );
+              },
+            ),
+            GoRoute(
+              path: '/see-all-reviews',
+              builder: (context, state) {
+                final extra = state.extra as Map<String, dynamic>? ?? {};
+                final title = extra['title'] as String? ?? 'All Reviews';
+                final reviews = extra['reviews'] as List<Review>? ?? [];
+                return SeeAllReviewsScreen(title: title, reviews: reviews);
               },
             ),
             GoRoute(
@@ -181,6 +209,10 @@ class AppRouter {
             GoRoute(
               path: '/change-password',
               builder: (context, state) => const ChangePasswordScreen(),
+            ),
+            GoRoute(
+              path: '/profile/my-reviews',
+              builder: (context, state) => const MyReviewsScreen(),
             ),
             GoRoute(
               path: '/notifications',
