@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import '../data/database_helper.dart';
-import '../models/movie.dart';
+import '../../core/data/database_helper.dart';
+import '../../core/models/movie.dart';
 
 class WatchlistProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   List<Movie> _watchlistMovies = [];
   final Set<int> _watchlistIds = {};
-  final Set<int> _processingMovies = {}; // Track movies being processed
+  final Set<int> _processingMovies = {};
   String? _currentUserId;
 
   List<Movie> get watchlistMovies => _watchlistMovies;
 
-  WatchlistProvider() {
-    // Don't auto-load until userId is set
-  }
+  WatchlistProvider() {}
 
   void setUserId(String? userId) {
     if (_currentUserId != userId) {
@@ -51,7 +49,6 @@ class WatchlistProvider with ChangeNotifier {
   Future<void> toggleWatchlist(Movie movie) async {
     if (_currentUserId == null) return;
 
-    // Prevent concurrent operations on the same movie
     if (_processingMovies.contains(movie.id)) {
       print(
           '⏳ Movie ${movie.id} is already being processed in watchlist, skipping...');
@@ -60,7 +57,6 @@ class WatchlistProvider with ChangeNotifier {
 
     _processingMovies.add(movie.id);
 
-    // ✅ OPTIMISTIC UPDATE - Update UI ngay lập tức
     final isCurrentlyInWatchlist = _watchlistIds.contains(movie.id);
     if (isCurrentlyInWatchlist) {
       _watchlistMovies.removeWhere((m) => m.id == movie.id);
@@ -69,14 +65,12 @@ class WatchlistProvider with ChangeNotifier {
       _watchlistMovies.add(movie);
       _watchlistIds.add(movie.id);
     }
-    notifyListeners(); // Update UI ngay
+    notifyListeners();
 
-    // Database operation chạy ở background
     try {
       await _dbHelper.toggleWatchlist(movie, _currentUserId!);
     } catch (e) {
       print('❌ Error toggling watchlist: $e');
-      // Rollback nếu có lỗi
       if (isCurrentlyInWatchlist) {
         _watchlistMovies.add(movie);
         _watchlistIds.add(movie.id);

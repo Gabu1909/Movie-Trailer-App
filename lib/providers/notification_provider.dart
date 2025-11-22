@@ -1,59 +1,158 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../models/app_notification.dart';
-import '../models/cast.dart';
-import '../models/review.dart';
-import '../models/movie.dart';
+import '../../core/models/app_notification.dart';
+import '../../core/models/cast.dart';
+import '../../core/models/review.dart';
+import '../../core/models/movie.dart';
+import '../../core/data/database_helper.dart';
 
 class NotificationProvider with ChangeNotifier {
   List<AppNotification> _notifications = [];
-  static const _notificationsKey = 'app_notifications';
-  static const _maxNotifications = 50; // Giới hạn số lượng thông báo
+  static const _maxNotifications = 50;
+  String? _currentUserId;
 
   List<AppNotification> get notifications => _notifications;
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   NotificationProvider() {
-    _loadNotifications();
+  }
+
+  Future<void> setUserId(String? userId) async {
+    print('NotificationProvider.setUserId called');
+    print('Previous userId: $_currentUserId');
+    print('New userId: $userId');
+    
+    if (_currentUserId != userId) {
+      _currentUserId = userId;
+      print('UserId changed, loading notifications...');
+      await _loadNotifications();
+    } else {
+      print('UserId unchanged, skipping reload');
+    }
   }
 
   Future<void> _loadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? notificationsString = prefs.getString(_notificationsKey);
-    if (notificationsString != null) {
-      final List<dynamic> decodedList = json.decode(notificationsString);
-      _notifications = decodedList.map((item) => AppNotification.fromJson(item)).toList();
-      _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp)); // Sắp xếp mới nhất lên đầu
+    if (_currentUserId == null) {
+      _notifications = [];
+      notifyListeners();
+      return;
+    }
 
-      // Áp dụng giới hạn khi tải
+    try {
+      final notificationMaps = await DatabaseHelper.instance.getNotifications(_currentUserId!);
+      print('📱 Loading ${notificationMaps.length} notifications for user $_currentUserId');
+      
+      _notifications = notificationMaps.map((map) {
+        final route = map['route'] as String?;
+        final typeString = route?.split('_').last ?? 'system';
+        
+        NotificationType notifType = NotificationType.system;
+        try {
+          notifType = NotificationType.values.firstWhere(
+            (e) => e.toString().toLowerCase() == 'notificationtype.$typeString'.toLowerCase(),
+          );
+        } catch (e) {
+          print('Could not parse notification type: $typeString, defaulting to system');
+        }
+        
+        final notification = AppNotification(
+          id: map['id'] as String,
+          title: map['title'] as String,
+          body: map['message'] as String,
+          timestamp: DateTime.parse(map['timestamp'] as String),
+          isRead: (map['isRead'] as int) == 1,
+          type: notifType,
+          movieId: map['routeArgs'] != null ? int.tryParse(map['routeArgs'] as String) : null,
+        );
+        
+        print('Loaded notification: ${notification.title} - Type: ${notification.type}');
+        return notification;
+      }).toList();
+
+      _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
       if (_notifications.length > _maxNotifications) {
         _notifications = _notifications.sublist(0, _maxNotifications);
       }
 
+      print('Successfully loaded ${_notifications.length} notifications');
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('Error loading notifications: $e');
+      print('Stack trace: $stackTrace');
+      _notifications = [];
       notifyListeners();
     }
   }
 
-  Future<void> _saveNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encodedList = json.encode(_notifications.map((n) => n.toJson()).toList());
-    await prefs.setString(_notificationsKey, encodedList);
+  Future<void> _saveNotification(AppNotification notification) async {
+    if (_currentUserId == null) {
+      print('⚠️ Cannot save notification: _currentUserId is null');
+      return;
+    }
+
+    print('💾 Saving notification to database:');
+    print('   UserId: $_currentUserId');
+    print('   Title: ${notification.title}');
+    print('   ID: ${notification.id}');
+
+    await DatabaseHelper.instance.saveNotification({
+      'id': notification.id,
+      'userId': _currentUserId!,
+      'title': notification.title,
+      'message': notification.body,
+      'timestamp': notification.timestamp.toIso8601String(),
+      'isRead': notification.isRead ? 1 : 0,
+      'imageUrl': null,
+      'route': 'notification_${notification.type.toString().split('.').last}',
+      'routeArgs': notification.movieId?.toString(),
+    });
+    
+    print('✅ Notification saved successfully');
   }
 
-  void addNotification(AppNotification notification) {
-    // Tránh thêm thông báo trùng lặp (ví dụ: coming soon)
+  Future<void> addNotification(AppNotification notification) async {
     if (_notifications.any((n) => n.id == notification.id)) return;
 
     _notifications.insert(0, notification);
 
-    // Nếu danh sách vượt quá giới hạn, hãy xóa thông báo cũ nhất
     if (_notifications.length > _maxNotifications) {
       _notifications.removeLast();
     }
 
-    _saveNotifications();
+    await _saveNotification(notification);
     notifyListeners();
+  }
+
+  Future<void> addNotificationForUser(String userId, AppNotification notification) async {
+    print('Saving notification for user: $userId');
+    print('Title: ${notification.title}');
+    print('Body: ${notification.body}');
+    print('MovieId: ${notification.movieId}');
+    
+    await DatabaseHelper.instance.saveNotification({
+      'id': notification.id,
+      'userId': userId,
+      'title': notification.title,
+      'message': notification.body,
+      'timestamp': notification.timestamp.toIso8601String(),
+      'isRead': 0,
+      'imageUrl': null,
+      'route': 'notification_${notification.type.toString().split('.').last}',
+      'routeArgs': notification.movieId?.toString(),
+    });
+    
+    print('Notification saved to database for user: $userId');
+
+    if (userId == _currentUserId) {
+      print('User is currently logged in, adding to in-memory list');
+      _notifications.insert(0, notification);
+      if (_notifications.length > _maxNotifications) {
+        _notifications.removeLast();
+      }
+      notifyListeners();
+    } else {
+      print('User $userId will see notification when they log in');
+    }
   }
 
   void addComingSoonNotifications(List<Movie> upcomingMovies) {
@@ -71,12 +170,11 @@ class NotificationProvider with ChangeNotifier {
   }
 
   void addTrendingNotifications(List<Movie> trendingMovies) {
-    // Chỉ lấy 3 phim hot nhất để làm thông báo
     final topTrending = trendingMovies.take(3).toList();
     for (var movie in topTrending) {
       final notification = AppNotification(
         id: 'trending_week_${movie.id}',
-        title: '🔥 Hot nhất tuần!',
+        title: 'Hot nhất tuần!',
         body: 'Đừng bỏ lỡ siêu phẩm "${movie.title}" đang thịnh hành.',
         timestamp: DateTime.now(),
         type: NotificationType.trending,
@@ -87,12 +185,11 @@ class NotificationProvider with ChangeNotifier {
   }
 
   void addNowPlayingNotifications(List<Movie> nowPlayingMovies) {
-    // Lấy 3 phim mới nhất
     final latest = nowPlayingMovies.take(3).toList();
     for (var movie in latest) {
       final notification = AppNotification(
         id: 'now_playing_${movie.id}',
-        title: '🎥 Mới phát hành!',
+        title: 'Mới phát hành!',
         body: 'Thưởng thức ngay bộ phim "${movie.title}" vừa ra mắt.',
         timestamp: DateTime.now(),
         type: NotificationType.nowPlaying,
@@ -105,72 +202,60 @@ class NotificationProvider with ChangeNotifier {
   void addActorInNewMovieNotification(Cast actor, Movie movie) {
     final notification = AppNotification(
       id: 'actor_${actor.id}_movie_${movie.id}',
-      title: '🎭 Ngôi sao tái xuất!',
+      title: 'Ngôi sao tái xuất!',
       body:
           '${actor.name} vừa góp mặt trong siêu phẩm "${movie.title}". Khám phá ngay!',
       timestamp: DateTime.now(),
       type: NotificationType.actor,
-      // Cho phép nhấn vào thông báo để xem chi tiết phim
       movieId: movie.id,
     );
     addNotification(notification);
   }
 
-  // Hàm mới để tạo thông báo khi có người trả lời review
-  void addReplyNotification({
-    required Movie movie,
-    required Review originalReview,
-    required String replierName,
-  }) {
+  void addSystemNotification(
+      {required String id, required String title, required String body}) {
     final notification = AppNotification(
-      id: 'reply_${movie.id}_${DateTime.now().millisecondsSinceEpoch}',
-      title: '💬 New Reply!',
-      body: '$replierName replied to your review on "${movie.title}".',
-      timestamp: DateTime.now(),
-      type: NotificationType.reply,
-      movieId: movie.id,
-    );
-    addNotification(notification);
-  }
-  // Hàm này có thể được gọi từ bất cứ đâu để tạo thông báo hệ thống
-  void addSystemNotification({required String id, required String title, required String body}) {
-    final notification = AppNotification(
-        id: id, title: title, body: body, timestamp: DateTime.now(), type: NotificationType.system);
+        id: id,
+        title: title,
+        body: body,
+        timestamp: DateTime.now(),
+        type: NotificationType.system);
     addNotification(notification);
   }
 
-  void markAsRead(String notificationId) {
+  Future<void> markAsRead(String notificationId) async {
     final index = _notifications.indexWhere((n) => n.id == notificationId);
     if (index != -1 && !_notifications[index].isRead) {
       _notifications[index].isRead = true;
-      _saveNotifications();
+      await DatabaseHelper.instance.markNotificationAsRead(notificationId);
       notifyListeners();
     }
   }
 
-  void markAllAsRead() {
+  Future<void> markAllAsRead() async {
     bool hasChanged = false;
     for (var notification in _notifications) {
       if (!notification.isRead) {
         notification.isRead = true;
+        await DatabaseHelper.instance.markNotificationAsRead(notification.id);
         hasChanged = true;
       }
     }
     if (hasChanged) {
-      _saveNotifications();
       notifyListeners();
     }
   }
 
-  void removeNotification(String notificationId) {
+  Future<void> removeNotification(String notificationId) async {
     _notifications.removeWhere((n) => n.id == notificationId);
-    _saveNotifications();
     notifyListeners();
   }
 
-  void clearAllNotifications() {
-    _notifications.clear();
-    _saveNotifications();
-    notifyListeners();
+  Future<void> clearAllNotifications() async {
+    if (_currentUserId != null) {
+      await DatabaseHelper.instance.clearNotifications(_currentUserId!);
+      _notifications.clear();
+      notifyListeners();
+    }
   }
 }

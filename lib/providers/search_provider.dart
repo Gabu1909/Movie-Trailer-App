@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../api/api_service.dart';
-import '../models/cast.dart';
-import '../models/movie.dart';
+import '../../core/api/api_service.dart';
+import '../../core/models/cast.dart';
+import '../../core/models/movie.dart';
 
 enum SearchType { movie, person }
 
@@ -31,11 +31,10 @@ class SearchProvider with ChangeNotifier {
   void setSearchType(SearchType type) {
     if (_searchType != type) {
       _searchType = type;
-      // Chạy lại tìm kiếm với query hiện tại cho loại mới
       if (_query.isNotEmpty) {
         search(_query);
       } else {
-        notifyListeners(); // Cập nhật UI để hiển thị đúng tab
+        notifyListeners();
       }
     }
   }
@@ -57,10 +56,10 @@ class SearchProvider with ChangeNotifier {
     try {
       if (_searchType == SearchType.movie) {
         _movies = await _apiService.searchMovies(_query);
-        _actors = []; // Xóa kết quả của loại kia
+        _actors = [];
       } else {
         _actors = await _apiService.searchActors(_query);
-        _movies = []; // Xóa kết quả của loại kia
+        _movies = [];
       }
     } catch (e) {
       debugPrint('Search failed: $e');

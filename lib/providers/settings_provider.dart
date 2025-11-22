@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum DownloadQuality { high, medium, low } // Giữ nguyên
+enum DownloadQuality { high, medium, low }
 
 class SettingsProvider with ChangeNotifier {
   static const String _themeModeKey = 'theme_mode';
@@ -9,13 +9,11 @@ class SettingsProvider with ChangeNotifier {
   static const String _soundEnabledKey = 'sound_enabled';
   static const String _hapticsEnabledKey = 'haptics_enabled';
 
-  // Trạng thái hiện tại
-  String _themeId = 'midnight_purple'; // ID của theme mặc định
+  String _themeId = 'midnight_purple';
   DownloadQuality _downloadQuality = DownloadQuality.medium;
   bool _soundEnabled = true;
   bool _hapticsEnabled = true;
 
-  // Getters
   String get themeId => _themeId;
   DownloadQuality get downloadQuality => _downloadQuality;
   bool get soundEnabled => _soundEnabled;
@@ -26,17 +24,36 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    _themeId = prefs.getString(_themeModeKey) ?? 'midnight_purple';
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    final qualityString = prefs.getString(_downloadQualityKey) ?? 'medium';
-    _downloadQuality = DownloadQuality.values
-        .firstWhere((e) => e.toString().split('.').last == qualityString);
+      final themeValue = prefs.get(_themeModeKey);
+      if (themeValue is String) {
+        _themeId = themeValue;
+      } else {
+        _themeId = 'midnight_purple';
+      }
 
-    _soundEnabled = prefs.getBool(_soundEnabledKey) ?? true;
-    _hapticsEnabled = prefs.getBool(_hapticsEnabledKey) ?? true;
+      final qualityValue = prefs.get(_downloadQualityKey);
+      String qualityString = 'medium';
+      if (qualityValue is String) {
+        qualityString = qualityValue;
+      }
+      _downloadQuality = DownloadQuality.values.firstWhere(
+          (e) => e.toString().split('.').last == qualityString,
+          orElse: () => DownloadQuality.medium);
 
-    notifyListeners();
+      _soundEnabled = prefs.getBool(_soundEnabledKey) ?? true;
+      _hapticsEnabled = prefs.getBool(_hapticsEnabledKey) ?? true;
+
+      notifyListeners();
+    } catch (e) {
+      _themeId = 'midnight_purple';
+      _downloadQuality = DownloadQuality.medium;
+      _soundEnabled = true;
+      _hapticsEnabled = true;
+      notifyListeners();
+    }
   }
 
   Future<void> setTheme(String themeId) async {
@@ -71,5 +88,4 @@ class SettingsProvider with ChangeNotifier {
   }
 }
 
-// Chuyển enum này ra ngoài để tránh lỗi
 enum AppThemeMode { light, dark, system }

@@ -1,41 +1,30 @@
 import 'package:flutter/material.dart';
-import '../api/api_service.dart';
-import '../models/user.dart';
-import '../data/database_helper.dart';
-import '../models/movie.dart';
-import '../models/review.dart';
-import 'cache_entry.dart'; // Import lớp CacheEntry
+import '../../core/api/api_service.dart';
+import '../../core/models/user.dart';
+import '../../core/data/database_helper.dart';
+import '../../core/models/movie.dart';
+import '../../core/models/review.dart';
+import 'cache_entry.dart';
 
 class MovieDetailProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
 
-  // Thời gian cache tồn tại, ví dụ: 30 phút
   static const _cacheTTL = Duration(minutes: 30);
-  // Giới hạn số lượng phim được cache để tránh sử dụng quá nhiều bộ nhớ.
   static const int _maxCacheSize = 50;
 
-  // Cache để lưu trữ chi tiết phim đã tải
   final Map<int, CacheEntry<Movie>> _movieCache = {};
-  // Danh sách để theo dõi thứ tự sử dụng (LRU). Key ở cuối là được dùng gần nhất.
-
-  // Cache để lưu trữ reviews
   final Map<int, CacheEntry<List<Review>>> _reviewsCache = {};
   final Map<int, Review?> _userReviewsCache = {};
   final List<int> _accessOrder = [];
 
-  // Trạng thái tải và lỗi cho từng movieId
   final Map<int, bool> _loadingStatus = {};
-  final Map<int, bool> _reviewsLoadingStatus =
-      {}; // Trạng thái tải riêng cho reviews
+  final Map<int, bool> _reviewsLoadingStatus = {};
   final Map<int, String?> _errorMessages = {};
-  // Cờ để theo dõi xem review đã được fetch lần đầu chưa
   final Map<int, bool> _reviewsFetched = {};
 
-  // Getters để UI truy cập
   Movie? getMovie(int movieId) => _movieCache[movieId]?.data;
   bool isReviewsLoading(int movieId) => _reviewsLoadingStatus[movieId] ?? false;
   bool isLoading(int movieId) {
-    // Khi truy cập, cập nhật lại thứ tự sử dụng
     if (_movieCache.containsKey(movieId)) {
       _markAsRecentlyUsed(movieId);
     }
@@ -48,14 +37,14 @@ class MovieDetailProvider with ChangeNotifier {
 
   Review? getUserReview(int movieId) => _userReviewsCache[movieId];
 
-  // Getter để kiểm tra xem review đã được fetch chưa
   bool haveReviewsBeenFetched(int movieId) => _reviewsFetched[movieId] ?? false;
 
   Future<void> fetchMovieDetails(int movieId,
-      {bool forceRefresh = false, User? currentUser}) async {
+      {bool forceRefresh = false,
+      User? currentUser,
+      String contentType = 'movie'}) async {
     final cachedEntry = _movieCache[movieId];
 
-    // 1. Kiểm tra cache: nếu không force refresh và có cache hợp lệ, không tải lại.
     if (!forceRefresh &&
         cachedEntry != null &&
         !cachedEntry.isExpired(_cacheTTL)) {
@@ -67,24 +56,21 @@ class MovieDetailProvider with ChangeNotifier {
       return;
     }
 
-    // 2. Đánh dấu là đang tải
     _loadingStatus[movieId] = true;
     _errorMessages.remove(movieId);
     notifyListeners();
 
     try {
-      // 3. Gọi API
-      final movieDetail = await _apiService.getMovieDetail(movieId);
+      final movieDetail = contentType == 'tv'
+          ? await _apiService.getTvShowDetail(movieId)
+          : await _apiService.getMovieDetail(movieId);
 
-      // 4. Lưu vào cache
       _evictIfNeeded();
       _movieCache[movieId] = CacheEntry(movieDetail);
 
       _loadingStatus[movieId] = false;
       _markAsRecentlyUsed(movieId);
 
-      // Thêm dòng này để đảm bảo UI được cập nhật sau khi fetch xong
-      // và trước khi notifyListeners() được gọi.
       _errorMessages.remove(movieId);
       notifyListeners();
     } catch (e) {
@@ -101,8 +87,10 @@ class MovieDetailProvider with ChangeNotifier {
     final cachedEntry = _reviewsCache[movieId];
     final alreadyFetched = haveReviewsBeenFetched(movieId);
 
-    // Chỉ fetch nếu forceRefresh hoặc chưa fetch lần nào.
-    if (!forceRefresh && alreadyFetched && cachedEntry != null && !cachedEntry.isExpired(_cacheTTL)) {
+    if (!forceRefresh &&
+        alreadyFetched &&
+        cachedEntry != null &&
+        !cachedEntry.isExpired(_cacheTTL)) {
       return;
     }
 
@@ -110,14 +98,14 @@ class MovieDetailProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // 2. Gọi API để lấy review từ TMDB và review của user từ DB
       final reviews = await _apiService.getMovieReviews(movieId);
-      final userReview = await DatabaseHelper.instance.getUserReview(movieId);
+      final userId = currentUser?.id ?? 'guest';
+      final userReview =
+          await DatabaseHelper.instance.getUserReview(movieId, userId);
 
-      // 3. Lưu vào cache
       _reviewsCache[movieId] = CacheEntry(reviews);
       _userReviewsCache[movieId] = userReview;
-      _reviewsFetched[movieId] = true; // Đánh dấu là đã fetch
+      _reviewsFetched[movieId] = true;
     } catch (e) {
       debugPrint('Error fetching movie reviews for $movieId: $e');
     } finally {
@@ -126,20 +114,35 @@ class MovieDetailProvider with ChangeNotifier {
     }
   }
 
-  Future<void> saveUserReview(
-      int movieId, double rating, String content, {User? currentUser}) async {
-    await DatabaseHelper.instance.saveUserReview(movieId, rating, content, currentUser?.name, currentUser?.profileImageUrl);
-    // Fetch lại review của user và cập nhật cache
-    final userReview = await DatabaseHelper.instance.getUserReview(movieId);
+  Future<void> saveUserReview(int movieId, double rating, String content,
+      {User? currentUser}) async {
+    final userId = currentUser?.id ?? 'guest';
+    
+    // Auto-save movie info to database if not already saved
+    // This ensures the movie exists in database for "My Reviews" to work
+    final movieEntry = _movieCache[movieId];
+    if (movieEntry != null) {
+      await DatabaseHelper.instance.saveMovie(movieEntry.data, userId);
+      print('✅ Auto-saved movie info to database for review');
+    }
+    
+    await DatabaseHelper.instance.saveUserReview(movieId, userId, rating,
+        content, currentUser?.name, currentUser?.profileImageUrl);
+    final userReview =
+        await DatabaseHelper.instance.getUserReview(movieId, userId);
     _userReviewsCache[movieId] = userReview;
     notifyListeners();
   }
 
-  Future<void> deleteUserReview(int movieId) async {
-    await DatabaseHelper.instance.deleteUserReview(movieId);
-    // Xóa review khỏi cache và cập nhật UI
+  Future<void> deleteUserReview(int movieId, {User? currentUser}) async {
+    final userId = currentUser?.id ?? 'guest';
+    print(
+        '🗑️ Attempting to delete review - movieId: $movieId, userId: $userId, userName: ${currentUser?.name}');
+    await DatabaseHelper.instance.deleteUserReview(movieId, userId);
     _userReviewsCache.remove(movieId);
+    _reviewsCache.remove(movieId);
     notifyListeners();
+    print('✅ Review deleted and cache cleared');
   }
 
   void _markAsRecentlyUsed(int movieId) {
@@ -154,7 +157,7 @@ class MovieDetailProvider with ChangeNotifier {
     _reviewsCache.remove(lruMovieId);
     _userReviewsCache.remove(lruMovieId);
     _accessOrder.remove(lruMovieId);
-    _reviewsFetched.remove(lruMovieId); // Xóa cờ fetch review
+    _reviewsFetched.remove(lruMovieId);
     _loadingStatus.remove(lruMovieId);
     _errorMessages.remove(lruMovieId);
     debugPrint("Cache eviction: Removed movie with ID $lruMovieId");

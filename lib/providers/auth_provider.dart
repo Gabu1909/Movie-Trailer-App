@@ -1,39 +1,33 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user.dart';
+import '../../core/models/user.dart';
 
 class AuthProvider with ChangeNotifier {
-  // Dùng Map để lưu trữ người dùng theo email, mô phỏng database
   final Map<String, User> _users = {};
-  // Map để tra cứu username -> email
   final Map<String, String> _usernameToEmail = {};
   User? _currentUser;
 
   User? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
 
-  // Khởi tạo và load dữ liệu từ SharedPreferences
   AuthProvider() {
     _loadFromPrefs();
   }
 
-  // Load dữ liệu người dùng từ SharedPreferences
   Future<void> _loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Load danh sách users
     final usersJson = prefs.getString('users');
     if (usersJson != null) {
       final Map<String, dynamic> decoded = json.decode(usersJson);
       decoded.forEach((email, userData) {
         final user = User.fromJson(userData);
         _users[email] = user;
-        _usernameToEmail[user.username] = email; // Build username map
+        _usernameToEmail[user.username] = email;
       });
     }
 
-    // Load current user
     final currentUserEmail = prefs.getString('currentUserEmail');
     if (currentUserEmail != null && _users.containsKey(currentUserEmail)) {
       _currentUser = _users[currentUserEmail];
@@ -41,18 +35,15 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Lưu dữ liệu vào SharedPreferences
   Future<void> _saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Lưu danh sách users
     final Map<String, dynamic> usersMap = {};
     _users.forEach((email, user) {
       usersMap[email] = user.toJson();
     });
     await prefs.setString('users', json.encode(usersMap));
 
-    // Lưu current user email
     if (_currentUser != null) {
       await prefs.setString('currentUserEmail', _currentUser!.email);
     } else {
@@ -61,25 +52,19 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> login(String usernameOrEmail, String password) async {
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
 
-    // Find user by username or email
     String? email;
     if (_users.containsKey(usernameOrEmail)) {
-      // Direct email lookup
       email = usernameOrEmail;
     } else if (_usernameToEmail.containsKey(usernameOrEmail)) {
-      // Username lookup
       email = _usernameToEmail[usernameOrEmail];
     }
 
-    // Check if user exists
     if (email == null || !_users.containsKey(email)) {
       throw 'User does not exist. Please sign up.';
     }
 
-    // Check password
     final user = _users[email]!;
     if (user.password != password) {
       throw 'Incorrect password. Please try again.';
@@ -102,12 +87,10 @@ class AuthProvider with ChangeNotifier {
   }) async {
     await Future.delayed(const Duration(seconds: 1));
 
-    // Check if email already exists
     if (_users.containsKey(email)) {
       throw 'An account with this email already exists.';
     }
 
-    // Check if username already exists
     if (_usernameToEmail.containsKey(username)) {
       throw 'This username is already taken.';
     }
@@ -122,11 +105,11 @@ class AuthProvider with ChangeNotifier {
       phone: phone,
       gender: gender,
       country: country,
+      createdAt: DateTime.now().toIso8601String(), 
     );
 
     _users[email] = newUser;
-    _usernameToEmail[username] = email; // Add to username map
-    // Do NOT set _currentUser here - user must login after registration
+    _usernameToEmail[username] = email;
     await _saveToPrefs();
     notifyListeners();
   }
@@ -146,7 +129,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Cập nhật thông tin profile
   Future<void> updateProfile({
     String? name,
     String? username,
@@ -161,7 +143,6 @@ class AuthProvider with ChangeNotifier {
     final oldEmail = _currentUser!.email;
     final oldUsername = _currentUser!.username;
 
-    // Check if new username is taken by another user
     if (username != null && username != oldUsername) {
       if (_usernameToEmail.containsKey(username) &&
           _usernameToEmail[username] != oldEmail) {
@@ -169,14 +150,12 @@ class AuthProvider with ChangeNotifier {
       }
     }
 
-    // Check if new email is taken by another user
     if (email != null && email != oldEmail) {
       if (_users.containsKey(email)) {
         throw 'This email is already in use by another account.';
       }
     }
 
-    // Update user data
     if (name != null) {
       _currentUser!.name = name;
     }
@@ -210,7 +189,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Change password
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -219,17 +197,14 @@ class AuthProvider with ChangeNotifier {
       throw 'No user is currently logged in.';
     }
 
-    // Verify current password
     if (_currentUser!.password != currentPassword) {
       throw 'Current password is incorrect.';
     }
 
-    // Check if new password is same as current
     if (currentPassword == newPassword) {
       throw 'New password must be different from current password.';
     }
 
-    // Update password
     _currentUser!.password = newPassword;
     _users[_currentUser!.email] = _currentUser!;
 

@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/favorites_provider.dart'; // Import FavoritesProvider
-import 'providers/movie_provider.dart'; // Import MovieProvider
-import 'providers/downloads_provider.dart'; // Import DownloadsProvider
-import 'providers/notification_provider.dart'; // Import NotificationProvider
-import 'providers/watchlist_provider.dart'; // Import WatchlistProvider
-import 'providers/bottom_nav_visibility_provider.dart'; // Import BottomNavVisibilityProvider
-import 'providers/settings_provider.dart'; // Import SettingsProvider
-import 'providers/movie_detail_provider.dart'; // Import MovieDetailProvider
-import 'providers/actor_detail_provider.dart'; // Import ActorDetailProvider
-import 'providers/auth_provider.dart'; // Import AuthProvider
-import 'providers/search_provider.dart'; // Import SearchProvider
-import 'providers/my_reviews_provider.dart'; // Import MyReviewsProvider
-import 'router/app_router.dart'; // Import AppRouter
-import 'api/api_service.dart'; // Import ApiService
-import 'services/local_notification_service.dart'; // Import LocalNotificationService
-import 'theme/constants.dart'; // Import theme constants
-import 'theme/custom_colors.dart'; // Import CustomColors
-import 'theme/app_themes.dart'; // Import các theme mới
+
+import 'core/api/api_service.dart';
+import 'core/router/app_router.dart';
+import 'core/services/local_notification_service.dart';
+import 'core/theme/constants.dart';
+import 'core/theme/custom_colors.dart';
+import 'core/theme/app_themes.dart';
+
+import 'providers/movie_provider.dart';
+import 'providers/bottom_nav_visibility_provider.dart';
+import 'providers/movie_detail_provider.dart';
+import 'providers/search_provider.dart';
+import 'providers/favorites_provider.dart';
+import 'providers/watchlist_provider.dart';
+import 'providers/downloads_provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/settings_provider.dart';
+import 'providers/my_reviews_provider.dart';
+import 'providers/actor_detail_provider.dart';
+import 'providers/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding
-      .ensureInitialized(); // Đảm bảo Flutter binding được khởi tạo
-  await LocalNotificationService.initialize(); // Khởi tạo dịch vụ thông báo
-  runApp(const MyApp()); // Chạy ứng dụng
+      .ensureInitialized(); 
+  await LocalNotificationService.initialize(); 
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -39,10 +41,8 @@ class _MyAppState extends State<MyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // Các provider không phụ thuộc
         ChangeNotifierProvider(create: (_) => MovieProvider(ApiService())),
 
-        // FavoritesProvider phụ thuộc vào AuthProvider
         ChangeNotifierProxyProvider<AuthProvider, FavoritesProvider>(
           create: (context) => FavoritesProvider(),
           update: (context, authProvider, previous) {
@@ -52,7 +52,6 @@ class _MyAppState extends State<MyApp> {
           },
         ),
 
-        // WatchlistProvider phụ thuộc vào AuthProvider
         ChangeNotifierProxyProvider<AuthProvider, WatchlistProvider>(
           create: (context) => WatchlistProvider(),
           update: (context, authProvider, previous) {
@@ -66,12 +65,20 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => BottomNavVisibilityProvider()),
         ChangeNotifierProvider(create: (_) => ActorDetailProvider()),
         ChangeNotifierProvider(create: (_) => MovieDetailProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+
+        ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
+          create: (context) => NotificationProvider(),
+          update: (context, authProvider, previous) {
+            final provider = previous ?? NotificationProvider();
+            provider.setUserId(authProvider.currentUser?.id);
+            return provider;
+          },
+        ),
+        
         ChangeNotifierProvider(
-            create: (_) => MyReviewsProvider()), // Thêm MyReviewsProvider
+            create: (_) => MyReviewsProvider()), 
         ChangeNotifierProvider(
-            create: (_) => SearchProvider()), // Thêm SearchProvider
-        // DownloadsProvider phụ thuộc vào NotificationProvider và AuthProvider
+            create: (_) => SearchProvider()), 
         ChangeNotifierProxyProvider2<NotificationProvider, AuthProvider,
             DownloadsProvider>(
           create: (context) => DownloadsProvider(
@@ -86,20 +93,16 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       child: Builder(builder: (context) {
-        // Lấy AuthProvider và SettingsProvider
         final authProvider = Provider.of<AuthProvider>(context);
         final settingsProvider = Provider.of<SettingsProvider>(context);
-        // Tạo AppRouter và truyền AuthProvider vào
         final appRouter = AppRouter(authProvider: authProvider);
-        // Lấy theme được chọn từ provider
         final selectedTheme = AppThemes.findById(settingsProvider.themeId);
 
         return MaterialApp.router(
           debugShowCheckedModeBanner: false,
           title: 'Flutter Movie App',
-          // Luôn sử dụng theme tối và chỉ thay đổi dữ liệu của nó
-          themeAnimationDuration: const Duration(milliseconds: 500), // Thời gian chuyển đổi
-          themeAnimationCurve: Curves.easeInOut, // Kiểu chuyển đổi
+          themeAnimationDuration: const Duration(milliseconds: 500), 
+          themeAnimationCurve: Curves.easeInOut, 
           themeMode: ThemeMode.dark,
           theme: ThemeData(
             brightness: Brightness.dark,
@@ -172,7 +175,6 @@ class _MyAppState extends State<MyApp> {
                 side: const BorderSide(color: Colors.transparent),
               ),
             ),
-            // Thêm extension màu tùy chỉnh cho Dark Theme
             extensions: <ThemeExtension<dynamic>>[
               CustomColors(
                   success: Colors.greenAccent[400],
@@ -187,7 +189,7 @@ class _MyAppState extends State<MyApp> {
                   )),
             ],
           ),
-          darkTheme: null, // Không cần darkTheme riêng nữa
+          darkTheme: null, 
           routerConfig: appRouter.router,
         );
       }),

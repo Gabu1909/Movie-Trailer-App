@@ -1,40 +1,37 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../models/app_notification.dart';
+import '../../core/models/app_notification.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import '../data/database_helper.dart';
-import '../models/movie.dart';
-import '../services/local_notification_service.dart';
-import '../api/api_service.dart'; // Import ApiService để fetch trailerKey
-import 'settings_provider.dart'; // Import SettingsProvider
+import '../../core/data/database_helper.dart';
+import '../../core/models/movie.dart';
+import '../../core/services/local_notification_service.dart';
+import '../../core/api/api_service.dart';
+import 'settings_provider.dart';
 
-import 'notification_provider.dart'; // Import NotificationProvider
+import 'notification_provider.dart';
 
 enum DownloadStatus { NotDownloaded, Downloading, Paused, Downloaded, Error }
 
 class DownloadsProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
-  late NotificationProvider _notificationProvider; // Thêm NotificationProvider
+  late NotificationProvider _notificationProvider;
   String? _currentUserId;
   List<Movie> _downloadedMovies = [];
   final Map<int, String> _filePaths = {};
   final Map<int, DownloadStatus> _statuses = {};
   final Map<int, double> _progress = {};
-  final Map<int, CancelToken> _cancelTokens = {}; // Để quản lý việc hủy tải
-  final Map<int, String> _errorMessages = {}; // Thêm map để lưu lỗi
+  final Map<int, CancelToken> _cancelTokens = {};
+  final Map<int, String> _errorMessages = {};
   bool _isDisposed = false;
 
   List<Movie> get downloadedMovies => _downloadedMovies;
 
   DownloadsProvider({required NotificationProvider notificationProvider})
-      : _notificationProvider = notificationProvider {
-    // Don't auto-load until userId is set
-  }
+      : _notificationProvider = notificationProvider {}
 
-  // Hàm để cập nhật dependency khi cần
   void updateDependencies(NotificationProvider notificationProvider) {
     _notificationProvider = notificationProvider;
   }
@@ -75,14 +72,11 @@ class DownloadsProvider with ChangeNotifier {
       return;
     }
 
-    // Tối ưu hóa: Lấy cả phim và đường dẫn file trong một truy vấn
     final downloadedData =
         await _dbHelper.getDownloadedMoviesWithPaths(_currentUserId!);
 
-    // Chuyển việc xử lý dữ liệu nặng sang một Isolate khác
     final processedData = await compute(_processDownloadedData, downloadedData);
 
-    // Cập nhật trạng thái của provider với dữ liệu đã xử lý
     _downloadedMovies = processedData['movies'] as List<Movie>;
     _filePaths.clear();
     _statuses.clear();
@@ -108,7 +102,6 @@ class DownloadsProvider with ChangeNotifier {
     return _filePaths[movieId];
   }
 
-  // Hàm mới để lấy thông báo lỗi
   String? getError(int movieId) {
     return _errorMessages[movieId];
   }
@@ -118,17 +111,15 @@ class DownloadsProvider with ChangeNotifier {
     if (getStatus(movie.id) == DownloadStatus.Downloading && !isResuming)
       return;
 
-    // Map chất lượng với URL giả
     const Map<DownloadQuality, String> fakeVideoUrls = {
       DownloadQuality.high:
-          'https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4', // 10MB
+          'https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4',
       DownloadQuality.medium:
-          'https://jsoncompare.org/LearningContainer/SampleFiles/Video/MP4/Sample-MP4-Video-File-for-Testing.mp4', // 5MB
+          'https://jsoncompare.org/LearningContainer/SampleFiles/Video/MP4/Sample-MP4-Video-File-for-Testing.mp4',
       DownloadQuality.low:
-          'https://www.sample-videos.com/video123/mp4/240/big_buck_bunny_240p_1mb.mp4', // 1MB
+          'https://www.sample-videos.com/video123/mp4/240/big_buck_bunny_240p_1mb.mp4',
     };
 
-    // Lấy URL dựa trên chất lượng đã chọn
     final url =
         fakeVideoUrls[quality] ?? fakeVideoUrls[DownloadQuality.medium]!;
 
@@ -148,7 +139,6 @@ class DownloadsProvider with ChangeNotifier {
 
       int receivedBytes = 0;
       if (isResuming) {
-        // Lấy số byte đã tải từ file hiện có
         final file = File(filePath);
         if (await file.exists()) {
           receivedBytes = await file.length();
@@ -156,7 +146,7 @@ class DownloadsProvider with ChangeNotifier {
       }
 
       final options = Options(
-        headers: {'Range': 'bytes=$receivedBytes-'}, // Header để tiếp tục tải
+        headers: {'Range': 'bytes=$receivedBytes-'},
       );
 
       await dio.download(
@@ -164,11 +154,9 @@ class DownloadsProvider with ChangeNotifier {
         filePath,
         options: options,
         cancelToken: cancelToken,
-        deleteOnError: false, // Rất quan trọng: không xóa file khi bị hủy
+        deleteOnError: false,
         onReceiveProgress: (received, total) {
           if (total != -1) {
-            // Nếu tiếp tục tải, total từ server có thể là phần còn lại
-            // nên ta cần tính toán lại tổng dung lượng
             final totalBytes = receivedBytes + total;
             _progress[movie.id] = (receivedBytes + received) / totalBytes;
             notifyListeners();
@@ -176,7 +164,6 @@ class DownloadsProvider with ChangeNotifier {
         },
       );
 
-      // Save to DB after download completes
       if (_currentUserId != null) {
         await _dbHelper.saveMovie(movie, _currentUserId!);
         await _dbHelper.addDownload(movie.id, filePath, _currentUserId!);
@@ -185,13 +172,11 @@ class DownloadsProvider with ChangeNotifier {
       _statuses[movie.id] = DownloadStatus.Downloaded;
       _filePaths[movie.id] = filePath;
 
-      // Kiểm tra xem movie đã có trong list chưa trước khi add
       if (!_downloadedMovies.any((m) => m.id == movie.id)) {
         _downloadedMovies.add(movie);
       }
-      _errorMessages.remove(movie.id); // Xóa lỗi cũ nếu có
+      _errorMessages.remove(movie.id);
 
-      // Gửi thông báo khi tải xong
       final notification = AppNotification(
         id: 'download_complete_${movie.id}',
         title: 'Download Success!',
@@ -203,25 +188,20 @@ class DownloadsProvider with ChangeNotifier {
       );
       _notificationProvider.addNotification(notification);
 
-      // Hiển thị thông báo cục bộ
       await LocalNotificationService.showNotification(
-        id: movie.id, // Sử dụng ID của phim làm ID thông báo
+        id: movie.id,
         title: 'Download Success!',
         body: '"${movie.title}" is ready to watch offline.',
-        payload:
-            'movie/${movie.id}', // Payload để mở lại màn hình chi tiết khi nhấn vào
+        payload: 'movie/${movie.id}',
       );
     } on DioException catch (e) {
-      // Nếu lỗi là do người dùng chủ động hủy (tạm dừng) thì không làm gì cả
       if (e.type == DioExceptionType.cancel) {
         debugPrint('Download for movie ${movie.id} was paused.');
-        return; // Thoát khỏi hàm, trạng thái đã được set là Paused ở hàm pauseDownload
+        return;
       }
-      // Xử lý các lỗi khác
       _statuses[movie.id] = DownloadStatus.Error;
       debugPrint('Download error: $e');
 
-      // Check specific DioException types
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.receiveTimeout) {
@@ -238,7 +218,6 @@ class DownloadsProvider with ChangeNotifier {
       _errorMessages[movie.id] = 'An unexpected error occurred.';
       debugPrint('Unexpected download error: $e');
     } finally {
-      // Chỉ xóa progress nếu tải xong hoặc lỗi, không xóa khi tạm dừng
       if (_statuses[movie.id] != DownloadStatus.Paused) {
         _progress.remove(movie.id);
       }
@@ -250,7 +229,7 @@ class DownloadsProvider with ChangeNotifier {
   Future<void> pauseDownload(int movieId) async {
     if (_statuses[movieId] == DownloadStatus.Downloading &&
         _cancelTokens.containsKey(movieId)) {
-      _cancelTokens[movieId]?.cancel(); // Gửi yêu cầu hủy
+      _cancelTokens[movieId]?.cancel();
       _statuses[movieId] = DownloadStatus.Paused;
       _cancelTokens.remove(movieId);
       notifyListeners();
@@ -259,10 +238,7 @@ class DownloadsProvider with ChangeNotifier {
 
   Future<void> resumeDownload(Movie movie) async {
     if (_statuses[movie.id] == DownloadStatus.Paused) {
-      // Khi resume, chúng ta không cần biết chất lượng nữa vì file đã có
-      // Gọi lại hàm downloadMovie với cờ isResuming = true
-      await downloadMovie(movie, DownloadQuality.medium,
-          isResuming: true); // Quality không quan trọng khi resume
+      await downloadMovie(movie, DownloadQuality.medium, isResuming: true);
     }
   }
 
@@ -284,8 +260,8 @@ class DownloadsProvider with ChangeNotifier {
     _downloadedMovies.removeWhere((m) => m.id == movie.id);
     _statuses.remove(movie.id);
     _filePaths.remove(movie.id);
-    _errorMessages.remove(movie.id); // Cũng xóa thông báo lỗi khi xóa phim
-    _progress.remove(movie.id); // Xóa progress khi xóa phim
+    _errorMessages.remove(movie.id);
+    _progress.remove(movie.id);
     notifyListeners();
   }
 
@@ -298,7 +274,6 @@ class DownloadsProvider with ChangeNotifier {
   }
 }
 
-// Hàm top-level để xử lý dữ liệu tải về trên một Isolate riêng
 Map<String, dynamic> _processDownloadedData(
     List<Map<String, dynamic>> downloadedData) {
   final List<Movie> movies = [];
@@ -308,10 +283,8 @@ Map<String, dynamic> _processDownloadedData(
       'Compute Isolate: Processing ${downloadedData.length} downloaded items.');
 
   for (var data in downloadedData) {
-    // Movie.fromMap là tác vụ nhẹ, có thể chạy ở đây
     final movie = Movie.fromMap(data);
 
-    // Kiểm tra duplicate trước khi thêm
     if (!movies.any((m) => m.id == movie.id)) {
       movies.add(movie);
       filePaths[movie.id] = data['filePath'] as String;

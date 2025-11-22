@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import '../data/database_helper.dart';
-import '../models/movie.dart';
+import '../../core/data/database_helper.dart';
+import '../../core/models/movie.dart';
 
 class FavoritesProvider with ChangeNotifier {
   List<Movie> _favorites = [];
   List<Movie> get favorites => _favorites;
   String? _currentUserId;
-  final Set<int> _processingMovies = {}; // Track movies being processed
+  final Set<int> _processingMovies = {}; 
 
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   FavoritesProvider() {
-    // Don't auto-load until userId is set
   }
 
   void setUserId(String? userId) {
@@ -37,14 +36,11 @@ class FavoritesProvider with ChangeNotifier {
     }
 
     final allFavorites = await _dbHelper.getFavorites(_currentUserId!);
-    // Defensive coding: Filter out any movies that might have a bad ID
     _favorites = allFavorites.where((m) {
       try {
-        // This access will throw if the 'id' is not initialized (LateInitializationError)
         m.id;
         return true;
       } catch (e) {
-        // Log the error and exclude the invalid movie from the list
         print('Skipping a favorite with an invalid ID: $e');
         return false;
       }
@@ -62,7 +58,6 @@ class FavoritesProvider with ChangeNotifier {
       return;
     }
 
-    // Prevent concurrent operations on the same movie
     if (_processingMovies.contains(movie.id)) {
       print(
           'FavoritesProvider: Movie ${movie.id} is already being processed, skipping...');
@@ -79,9 +74,8 @@ class FavoritesProvider with ChangeNotifier {
     } else {
       _favorites.add(movie);
     }
-    notifyListeners(); // Update UI ngay
+    notifyListeners(); 
 
-    // Database operation chạy ở background
     try {
       if (isCurrentlyFavorite) {
         print('Removing from favorites...');
@@ -93,7 +87,6 @@ class FavoritesProvider with ChangeNotifier {
       print('Favorites updated successfully');
     } catch (e) {
       print('Error toggling favorite: $e');
-      // Rollback nếu có lỗi
       if (isCurrentlyFavorite) {
         _favorites.add(movie);
       } else {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/database_helper.dart';
-import '../models/user_review_with_movie.dart';
+import '../../core/data/database_helper.dart';
+import '../../core/models/user_review_with_movie.dart';
 
 class MyReviewsProvider with ChangeNotifier {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -60,7 +60,7 @@ class MyReviewsProvider with ChangeNotifier {
       }
       _reviews.addAll(newReviews);
     } catch (e) {
-      _page--; // Rollback page number on error
+      _page--;
       debugPrint("Error fetching more reviews: $e");
     } finally {
       _isFetchingMore = false;

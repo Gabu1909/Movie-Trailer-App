@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background gradient giống splash screen Flutter -->
     <item>
-        <bitmap android:gravity="fill" android:src="@drawable/background"/>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="135"
+                android:startColor="#1a0033"
+                android:centerColor="#330066"
+                android:endColor="#1a0033"
+                android:type="linear" />
+        </shape>
+    </item>
+    
+    <!-- Logo ở giữa màn hình -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/logo" />
     </item>
 </layer-list>
