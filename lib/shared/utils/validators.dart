@@ -1,13 +1,4 @@
-/// Centralized validation utilities for form fields
-///
-/// Usage:
-/// ```dart
-/// TextFormField(
-///   validator: Validators.email,
-/// )
-/// ```
 class Validators {
-  // Email validation
   static String? email(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email is required';
@@ -24,7 +15,6 @@ class Validators {
     return null;
   }
 
-  // Password validation
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password is required';
@@ -37,7 +27,6 @@ class Validators {
     return null;
   }
 
-  // Username validation
   static String? username(String? value) {
     if (value == null || value.isEmpty) {
       return 'Username is required';
@@ -54,7 +43,6 @@ class Validators {
     return null;
   }
 
-  // Name validation
   static String? name(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name is required';
@@ -67,10 +55,9 @@ class Validators {
     return null;
   }
 
-  // Phone validation
   static String? phone(String? value) {
     if (value == null || value.isEmpty) {
-      return null; // Phone is optional
+      return null;
     }
 
     if (!RegExp(r'^\+?[0-9]{10,15}$').hasMatch(value)) {
@@ -80,7 +67,6 @@ class Validators {
     return null;
   }
 
-  // Confirm password validation
   static String? Function(String?) confirmPassword(String originalPassword) {
     return (String? value) {
       if (value == null || value.isEmpty) {
@@ -95,7 +81,6 @@ class Validators {
     };
   }
 
-  // Required field validation
   static String? required(String? value, {String? fieldName}) {
     if (value == null || value.isEmpty) {
       return '${fieldName ?? 'This field'} is required';
@@ -103,7 +88,6 @@ class Validators {
     return null;
   }
 
-  // Min length validation
   static String? Function(String?) minLength(int length, {String? fieldName}) {
     return (String? value) {
       if (value == null || value.isEmpty) {
@@ -118,7 +102,6 @@ class Validators {
     };
   }
 
-  // Max length validation
   static String? Function(String?) maxLength(int length, {String? fieldName}) {
     return (String? value) {
       if (value != null && value.length > length) {

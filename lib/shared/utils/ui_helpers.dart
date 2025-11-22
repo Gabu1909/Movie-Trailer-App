@@ -2,18 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/feedback_service.dart';
 
-/// Centralized UI helper utilities for dialogs, snackbars, bottom sheets, navigation, and images
-///
-/// Usage:
-/// ```dart
-/// UIHelpers.showSuccessSnackBar(context, 'Profile updated!');
-/// UIHelpers.navigateToMovie(context, movieId);
-/// final proxiedUrl = UIHelpers.getProxiedImageUrl(originalUrl);
-/// ```
 class UIHelpers {
-  // ==================== SNACKBARS ====================
-
-  /// Show success snackbar with green checkmark
   static void showSuccessSnackBar(
     BuildContext context,
     String message, {
@@ -39,7 +28,6 @@ class UIHelpers {
     );
   }
 
-  /// Show error snackbar with red error icon
   static void showErrorSnackBar(
     BuildContext context,
     String message, {
@@ -65,7 +53,6 @@ class UIHelpers {
     );
   }
 
-  /// Show info snackbar with blue info icon
   static void showInfoSnackBar(
     BuildContext context,
     String message, {
@@ -91,7 +78,6 @@ class UIHelpers {
     );
   }
 
-  /// Show warning snackbar with orange warning icon
   static void showWarningSnackBar(
     BuildContext context,
     String message, {
@@ -117,10 +103,6 @@ class UIHelpers {
     );
   }
 
-  // ==================== DIALOGS ====================
-
-  /// Show confirmation dialog with Yes/No buttons
-  /// Returns true if user confirmed, false if cancelled
   static Future<bool> showConfirmDialog(
     BuildContext context,
     String message, {
@@ -151,7 +133,6 @@ class UIHelpers {
     return result ?? false;
   }
 
-  /// Show info dialog with OK button
   static Future<void> showInfoDialog(
     BuildContext context,
     String message, {
@@ -173,7 +154,6 @@ class UIHelpers {
     );
   }
 
-  /// Show error dialog with OK button
   static Future<void> showErrorDialog(
     BuildContext context,
     String message, {
@@ -201,9 +181,6 @@ class UIHelpers {
     );
   }
 
-  // ==================== LOADING INDICATOR ====================
-
-  /// Show loading dialog (blocks user interaction)
   static void showLoadingDialog(BuildContext context, {String? message}) {
     showDialog(
       context: context,
@@ -223,14 +200,10 @@ class UIHelpers {
     );
   }
 
-  /// Hide loading dialog
   static void hideLoadingDialog(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
   }
 
-  // ==================== BOTTOM SHEETS ====================
-
-  /// Show modal bottom sheet with rounded corners
   static Future<T?> showCustomBottomSheet<T>(
     BuildContext context, {
     required Widget child,
@@ -248,9 +221,6 @@ class UIHelpers {
     );
   }
 
-  // ==================== NAVIGATION ====================
-
-  /// Navigate to movie detail screen with haptic feedback
   static void navigateToMovie(
     BuildContext context,
     int movieId, {
@@ -265,14 +235,12 @@ class UIHelpers {
     }
   }
 
-  /// Navigate to actor detail screen with haptic feedback
   static void navigateToActor(BuildContext context, int actorId) {
     FeedbackService.playSound(context);
     FeedbackService.lightImpact(context);
     context.push('/actor/$actorId');
   }
 
-  /// Navigate to see all screen with haptic feedback
   static void navigateToSeeAll(
     BuildContext context, {
     required String title,
@@ -288,7 +256,6 @@ class UIHelpers {
     });
   }
 
-  /// Navigate to local video player
   static void navigateToLocalPlayer(
     BuildContext context, {
     required String filePath,
@@ -302,20 +269,14 @@ class UIHelpers {
     });
   }
 
-  /// Go back with haptic feedback
   static void goBack(BuildContext context) {
     FeedbackService.playSound(context);
     FeedbackService.lightImpact(context);
     context.pop();
   }
 
-  // ==================== IMAGE HELPER ====================
-
-  /// Get proxied image URL to bypass hotlink protection
-  /// Uses images.weserv.nl service for free image optimization
   static String getProxiedImageUrl(String originalUrl) {
     final encodedUrl = Uri.encodeComponent(originalUrl);
-    // w=800: limit width to 800px, q=85: 85% quality
     return 'https://images.weserv.nl/?url=$encodedUrl&w=800&q=85';
   }
 }

@@ -26,27 +26,19 @@ class DatabaseHelper {
     return _database!;
   }
 
-  /// Đảm bảo bảng notifications có cột userId
-  /// - Chạy 1 lần duy nhất khi app khởi động (nhờ flag _hasCheckedNotificationsTable)
-  /// - Dùng để fix database của những app đã cài đặt trước khi thêm feature notifications
-  /// - Không ảnh hưởng đến app mới cài đặt (table đã có userId từ _createDB)
   Future<void> _ensureNotificationsTableHasUserId(Database db) async {
     try {
-      // Kiểm tra bảng notifications có tồn tại không
       final tables = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'");
 
       if (tables.isNotEmpty) {
-        // Kiểm tra cột userId đã tồn tại chưa
         final tableInfo = await db.rawQuery('PRAGMA table_info(notifications)');
         final hasUserId = tableInfo.any((column) => column['name'] == 'userId');
 
         if (!hasUserId) {
           print('FIXING: Adding userId column to notifications table...');
-          // Thêm cột userId với giá trị mặc định "guest" cho data cũ
           await db.execute(
               'ALTER TABLE notifications ADD COLUMN userId TEXT NOT NULL DEFAULT "guest"');
-          // Tạo index để query nhanh theo userId
           await db.execute(
               'CREATE INDEX IF NOT EXISTS idx_notifications_userId ON notifications(userId)');
           print('FIXED: userId column added to notifications table!');
@@ -279,10 +271,6 @@ class DatabaseHelper {
           'Version 22 migration complete! Reviews were reset (users need to re-submit)');
     }
 
-    // Version 23: Notifications table với userId
-    // NOTE: Không cần tạo table ở đây vì:
-    // - App mới: table được tạo tự động trong _createDB (dòng 63)
-    // - App cũ: table được fix tự động bởi _ensureNotificationsTableHasUserId (dòng 29)
     if (oldVersion < 23) {
       print('Version 23: Notifications table will be handled automatically');
     }

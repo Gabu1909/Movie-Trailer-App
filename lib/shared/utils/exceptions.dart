@@ -1,11 +1,3 @@
-/// Custom exceptions for better error handling
-///
-/// Usage:
-/// ```dart
-/// throw ApiException('Connection timeout', statusCode: 408);
-/// throw DatabaseException('Failed to insert record');
-/// ```
-
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
@@ -25,7 +17,6 @@ class ApiException implements Exception {
     return 'ApiException: $message';
   }
 
-  /// User-friendly error message
   String get userMessage {
     switch (statusCode) {
       case 400:
