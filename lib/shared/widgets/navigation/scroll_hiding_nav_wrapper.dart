@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
-import '../../providers/bottom_nav_visibility_provider.dart';
+import '../../../providers/bottom_nav_visibility_provider.dart';
 
 class ScrollHidingNavWrapper extends StatelessWidget {
   final Widget child;
