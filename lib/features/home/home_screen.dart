@@ -1,16 +1,16 @@
 import 'dart:ui';
-import 'dart:async'; 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../providers/movie_provider.dart';
 import '../../../shared/widgets/lists/movie_list.dart';
-import '../../../shared/widgets/cards/trending_movie_card.dart'; 
-import '../../../shared/widgets/cards/trending_movie_card_placeholder.dart'; 
-import '../../../shared/widgets/cards/kids_movie_card.dart'; 
-import '../../../shared/widgets/cards/ranked_movie_card.dart'; 
-import '../../../shared/widgets/cards/cinematic_wide_card.dart'; 
-import '../../../shared/widgets/navigation/custom_app_bar.dart'; 
+import '../../../shared/widgets/cards/trending_movie_card.dart';
+import '../../../shared/widgets/cards/trending_movie_card_placeholder.dart';
+import '../../../shared/widgets/cards/kids_movie_card.dart';
+import '../../../shared/widgets/cards/ranked_movie_card.dart';
+import '../../../shared/widgets/cards/cinematic_wide_card.dart';
+import '../../../shared/widgets/navigation/custom_app_bar.dart';
 import '../../../core/theme/constants.dart';
 import '../../../core/models/genre.dart';
 import 'see_all_screen.dart';
@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _initializePageController() {
     _pageController?.dispose();
     _pageController = PageController(
-      viewportFraction: 0.70,
+      viewportFraction: 0.8,
       initialPage: 10000,
     );
     _pageController!.addListener(() {
@@ -119,7 +119,8 @@ class _HomeScreenState extends State<HomeScreen>
           body: AnimatedContainer(
             duration: const Duration(milliseconds: 500),
             decoration: BoxDecoration(
-              color: isDarkMode ? null : Theme.of(context).scaffoldBackgroundColor,
+              color:
+                  isDarkMode ? null : Theme.of(context).scaffoldBackgroundColor,
               gradient: isDarkMode
                   ? LinearGradient(
                       colors: const [
@@ -133,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen>
                       stops: const [0.0, 0.3, 0.7, 1.0],
                     )
                   : null,
-              ),
+            ),
             child: child,
           ),
         );
@@ -236,23 +237,26 @@ class _HomeScreenState extends State<HomeScreen>
                     _scaffoldKey.currentState?.openDrawer();
                   }),
                   _buildTrendingSection(context, provider),
-                  const SizedBox(height: 24), 
-
+                  const SizedBox(height: 24),
                   if (provider.topRatedSorted.isNotEmpty) ...[
-                    const SizedBox(height: 10), 
+                    const SizedBox(height: 10),
                     SectionHeader(
                       title: 'Top Rated',
-                      accentColors: const [Color(0xFFFFD700), Color(0xFFFF8F00)], 
-                      onSeeAll: () => context.push('/see-all', extra: {'title': 'Top Rated', 'movies': provider.topRatedSorted}),
+                      accentColors: const [
+                        Color(0xFFFFD700),
+                        Color(0xFFFF8F00)
+                      ],
+                      onSeeAll: () => context.push('/see-all', extra: {
+                        'title': 'Top Rated',
+                        'movies': provider.topRatedSorted
+                      }),
                     ),
                     const SizedBox(height: 16),
-
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0), 
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Column(
                         children: provider.topRatedSorted
-                            .take(3) 
+                            .take(3)
                             .toList()
                             .asMap()
                             .entries
@@ -267,14 +271,18 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 30),
-
                   if (provider.kidsMovies.isNotEmpty) ...[
                     SectionHeader(
                       title: 'Best for Kids',
-                      accentColors: const [Colors.cyanAccent, Colors.pinkAccent], 
-                      onSeeAll: () => context.push('/see-all', extra: {'title': 'Best for Kids', 'movies': provider.kidsMovies}),
+                      accentColors: const [
+                        Colors.cyanAccent,
+                        Colors.pinkAccent
+                      ],
+                      onSeeAll: () => context.push('/see-all', extra: {
+                        'title': 'Best for Kids',
+                        'movies': provider.kidsMovies
+                      }),
                     ),
                     const SizedBox(height: 16),
                     ShaderMask(
@@ -293,8 +301,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       blendMode: BlendMode.dstIn,
                       child: SizedBox(
-                        height:
-                            260, 
+                        height: 260,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -310,14 +317,18 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 30),
-
                   if (provider.weeklyTrendingMovies.isNotEmpty) ...[
                     SectionHeader(
                       title: 'Recommendations',
-                      accentColors: const [Color(0xFFD96FF8), Color(0xFF40C9FF)], 
-                      onSeeAll: () => context.push('/see-all', extra: {'title': 'Recommendations', 'movies': provider.weeklyTrendingMovies}),
+                      accentColors: const [
+                        Color(0xFFD96FF8),
+                        Color(0xFF40C9FF)
+                      ],
+                      onSeeAll: () => context.push('/see-all', extra: {
+                        'title': 'Recommendations',
+                        'movies': provider.weeklyTrendingMovies
+                      }),
                     ),
                     const SizedBox(height: 16),
                     ShaderMask(
@@ -336,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                       blendMode: BlendMode.dstIn,
                       child: SizedBox(
-                        height: 250, 
+                        height: 250,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -345,15 +356,13 @@ class _HomeScreenState extends State<HomeScreen>
                             return Padding(
                               padding: const EdgeInsets.only(right: 12.0),
                               child: CinematicWideCard(
-                                  movie: provider
-                                      .weeklyTrendingMovies[index]), 
+                                  movie: provider.weeklyTrendingMovies[index]),
                             );
                           },
                         ),
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -464,9 +473,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-
             _buildDrawerMenuItem(
               context,
               icon: Icons.movie_filter_rounded,
@@ -493,7 +500,6 @@ class _HomeScreenState extends State<HomeScreen>
                 }
               },
             ),
-
             _buildDrawerMenuItem(
               context,
               icon: Icons.live_tv_rounded,
@@ -529,13 +535,11 @@ class _HomeScreenState extends State<HomeScreen>
                 }
               },
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child:
                   Divider(color: Colors.white.withOpacity(0.2), thickness: 1),
             ),
-
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -586,13 +590,11 @@ class _HomeScreenState extends State<HomeScreen>
                     .toList(),
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child:
                   Divider(color: Colors.white.withOpacity(0.2), thickness: 1),
             ),
-
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -630,9 +632,7 @@ class _HomeScreenState extends State<HomeScreen>
                     .toList(),
               ),
             ),
-
             const SizedBox(height: 16),
-
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Consumer<MovieProvider>(
@@ -665,15 +665,15 @@ class _HomeScreenState extends State<HomeScreen>
                             Provider.of<MovieProvider>(context, listen: false);
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
                         final navigator = GoRouter.of(context);
-                        
+
                         Navigator.of(context).pop();
                         await Future.delayed(const Duration(milliseconds: 300));
-                        
+
                         try {
                           final movies =
                               await movieProvider.getMoviesByFilter();
                           final title = movieProvider.getSelectedGenresText();
-                          
+
                           if (movies.isEmpty) {
                             scaffoldMessenger.showSnackBar(
                               const SnackBar(
@@ -685,7 +685,7 @@ class _HomeScreenState extends State<HomeScreen>
                             );
                             return;
                           }
-                          
+
                           navigator.push(
                             '/see-all',
                             extra: {
@@ -888,17 +888,15 @@ class _HomeScreenState extends State<HomeScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'LETS EXPLORE', 
+                'LETS EXPLORE',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.7),
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 2.0, 
+                  letterSpacing: 2.0,
                 ),
               ),
-
               const SizedBox(height: 4),
-
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -906,7 +904,7 @@ class _HomeScreenState extends State<HomeScreen>
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [
                         Colors.white,
-                        Color(0xFFFF006E), 
+                        Color(0xFFFF006E),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -914,11 +912,11 @@ class _HomeScreenState extends State<HomeScreen>
                     child: const Text(
                       'TRENDING',
                       style: TextStyle(
-                        color: Colors.white, 
-                        fontSize: 35, 
-                        fontWeight: FontWeight.w900, 
+                        color: Colors.white,
+                        fontSize: 35,
+                        fontWeight: FontWeight.w900,
                         height: 1.0,
-                        fontStyle: FontStyle.italic, 
+                        fontStyle: FontStyle.italic,
                         shadows: [
                           Shadow(
                             color: Color(0xFFFF006E),
@@ -929,9 +927,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 8),
-
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -944,9 +940,7 @@ class _HomeScreenState extends State<HomeScreen>
                       size: 24,
                     ),
                   ),
-
                   const Spacer(),
-
                   GestureDetector(
                     onTap: () {
                       context.push('/see-all', extra: {
@@ -979,9 +973,9 @@ class _HomeScreenState extends State<HomeScreen>
                           Text(
                             'See All',
                             style: TextStyle(
-                              color: Color(0xFFFF006E), 
+                              color: Color(0xFFFF006E),
                               fontSize: 12,
-                              fontWeight: FontWeight.w800, 
+                              fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -1000,9 +994,7 @@ class _HomeScreenState extends State<HomeScreen>
             ],
           ),
         ),
-
         _buildGenreTabs(context, provider.genres),
-
         SizedBox(
           height: 380,
           child: Stack(
@@ -1020,21 +1012,20 @@ class _HomeScreenState extends State<HomeScreen>
                     ? PageView.builder(
                         key: const ValueKey('shimmer_loader'),
                         controller: PageController(viewportFraction: 0.65),
-                        itemCount: 5, 
+                        itemCount: 5,
                         itemBuilder: (context, index) {
                           final isCenter = index == 1;
                           return AnimatedScale(
                             scale: isCenter ? 1.0 : 0.8,
                             duration: const Duration(milliseconds: 400),
                             child: const AnimatedOpacity(
-                                opacity: 1.0, 
+                                opacity: 1.0,
                                 duration: Duration(milliseconds: 400),
                                 child: TrendingMovieCardPlaceholder()),
                           );
                         })
                     : NotificationListener<ScrollNotification>(
-                        key: ValueKey(provider
-                            .selectedGenreIndex), 
+                        key: ValueKey(provider.selectedGenreIndex),
                         onNotification: (notification) {
                           if (notification is UserScrollNotification) {
                             _stopAutoSlideTimer();
@@ -1044,8 +1035,7 @@ class _HomeScreenState extends State<HomeScreen>
                           return true;
                         },
                         child: PageView.builder(
-                          controller:
-                              _pageController!, 
+                          controller: _pageController!,
                           itemCount:
                               provider.trendingMovies.isEmpty ? 0 : 1000000,
                           itemBuilder: (context, index) {
@@ -1068,6 +1058,31 @@ class _HomeScreenState extends State<HomeScreen>
                                   movie: provider.trendingMovies[movieIndex],
                                   isCenterItem: movieIndex == _actualMovieIndex,
                                   scrollOffset: pageOffset,
+                                  onFavoriteToggled: (isNowFavorite) {
+                                    if (isNowFavorite) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          backgroundColor: Colors.white,
+                                          content: Row(
+                                            children: [
+                                              Icon(Icons.check_circle,
+                                                  color: Colors.green),
+                                              const SizedBox(width: 8),
+                                              const Expanded(
+                                                child: Text(
+                                                  'Added to favourite successfully',
+                                                  style: TextStyle(
+                                                      color: Colors.black),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  },
                                 );
                               },
                             );
@@ -1075,7 +1090,6 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
               ),
-
               Positioned(
                 bottom: 42,
                 left: 0,
@@ -1087,7 +1101,7 @@ class _HomeScreenState extends State<HomeScreen>
                     child: _buildWormIndicator(
                       itemCount: provider.trendingMovies.length.clamp(0, 5),
                       activeIndex: _actualMovieIndex % 5,
-                    ), 
+                    ),
                   ),
                 ),
               ),
@@ -1100,8 +1114,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildGenreTabs(BuildContext context, List<Genre> genres) {
     List<dynamic> displayGenres = [
-      Genre(id: 0, name: 'Popular'), 
-      ...genres.take(4) 
+      Genre(id: 0, name: 'Popular'),
+      ...genres.take(4)
     ];
 
     return Container(
@@ -1112,8 +1126,7 @@ class _HomeScreenState extends State<HomeScreen>
         padding: const EdgeInsets.only(left: 16),
         itemCount: displayGenres.length,
         itemBuilder: (context, index) {
-          final genre =
-              displayGenres[index]; 
+          final genre = displayGenres[index];
           bool isSelected =
               context.watch<MovieProvider>().selectedGenreIndex == index;
 
@@ -1125,8 +1138,8 @@ class _HomeScreenState extends State<HomeScreen>
               onSelected: (selected) {
                 if (selected) {
                   setState(() {
-                    _actualMovieIndex = 0; 
-                    _currentPage = 10000; 
+                    _actualMovieIndex = 0;
+                    _currentPage = 10000;
                   });
                   _initializePageController();
                   Provider.of<MovieProvider>(context, listen: false)
@@ -1152,7 +1165,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (itemCount == 0) return const SizedBox.shrink();
 
     const double dotSize = 8.0;
-    const double dotSpacing = 12.0; 
+    const double dotSpacing = 12.0;
 
     return Stack(
       alignment: Alignment.centerLeft,

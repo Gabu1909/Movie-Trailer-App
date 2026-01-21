@@ -32,21 +32,23 @@ class _AddReviewBoxState extends State<AddReviewBox> {
       try {
         final currentUser = context.read<AuthProvider>().currentUser;
         final provider = context.read<MovieDetailProvider>();
-        
-        // Save review first
-        await provider.saveUserReview(widget.movieId, _currentRating, _textController.text, currentUser: currentUser);
-        
-        // Schedule the refresh after the current frame to avoid setState during build
+
+        await provider.saveUserReview(
+            widget.movieId, _currentRating, _textController.text,
+            currentUser: currentUser);
+
         if (mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              provider.fetchMovieReviews(widget.movieId, forceRefresh: true, currentUser: currentUser);
+              provider.fetchMovieReviews(widget.movieId,
+                  forceRefresh: true, currentUser: currentUser);
             }
           });
-          
+
           _textController.clear();
           setState(() => _currentRating = 5.0);
-          UIHelpers.showSuccessSnackBar(context, 'Your review has been submitted!');
+          UIHelpers.showSuccessSnackBar(
+              context, 'Your review has been submitted!');
         }
       } catch (e) {
         if (mounted) {
@@ -77,7 +79,8 @@ class _AddReviewBoxState extends State<AddReviewBox> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Your Rating:', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                const Text('Your Rating:',
+                    style: TextStyle(color: Colors.white70, fontSize: 16)),
                 Text(
                   _currentRating.toStringAsFixed(1),
                   style: const TextStyle(
@@ -130,13 +133,18 @@ class _AddReviewBoxState extends State<AddReviewBox> {
               child: ElevatedButton.icon(
                 onPressed: _isSubmitting ? null : _submitReview,
                 icon: _isSubmitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.send_rounded, size: 18),
                 label: Text(_isSubmitting ? 'Submitting...' : 'Submit Review'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.pinkAccent,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),

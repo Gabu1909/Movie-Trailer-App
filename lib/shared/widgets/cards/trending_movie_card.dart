@@ -13,12 +13,14 @@ class TrendingMovieCard extends StatelessWidget {
   final Movie movie;
   final bool isCenterItem;
   final double scrollOffset;
+  final void Function(bool isNowFavorite)? onFavoriteToggled;
 
   const TrendingMovieCard({
     super.key,
     required this.movie,
     this.isCenterItem = false,
     this.scrollOffset = 0.0,
+    this.onFavoriteToggled,
   });
 
   @override
@@ -121,7 +123,16 @@ class TrendingMovieCard extends StatelessWidget {
                     builder: (context, provider, child) {
                       final isFavorite = provider.isFavorite(movie.id);
                       return GestureDetector(
-                        onTap: () => provider.toggleFavorite(movie),
+                        onTap: () async {
+                          final wasFavorite = provider.isFavorite(movie.id);
+                          await provider.toggleFavorite(movie);
+                          final isNowFavorite = provider.isFavorite(movie.id);
+                          if (onFavoriteToggled != null &&
+                              !wasFavorite &&
+                              isNowFavorite) {
+                            onFavoriteToggled!(true);
+                          }
+                        },
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(

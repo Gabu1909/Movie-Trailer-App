@@ -30,9 +30,9 @@ class _LocalVideoPlayerScreenState extends State<LocalVideoPlayerScreen> {
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-    print('🎥 LocalVideoPlayerScreen initialized');
-    print('📂 Playing file: ${widget.filePath}');
-    print('🎬 Movie title: ${widget.title}');
+    print('LocalVideoPlayerScreen initialized');
+    print('Playing file: ${widget.filePath}');
+    print('Movie title: ${widget.title}');
     _controller = VideoPlayerController.file(File(widget.filePath))
       ..initialize().then((_) {
         setState(() {});

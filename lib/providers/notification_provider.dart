@@ -13,14 +13,13 @@ class NotificationProvider with ChangeNotifier {
   List<AppNotification> get notifications => _notifications;
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
-  NotificationProvider() {
-  }
+  NotificationProvider() {}
 
   Future<void> setUserId(String? userId) async {
     print('NotificationProvider.setUserId called');
     print('Previous userId: $_currentUserId');
     print('New userId: $userId');
-    
+
     if (_currentUserId != userId) {
       _currentUserId = userId;
       print('UserId changed, loading notifications...');
@@ -38,22 +37,27 @@ class NotificationProvider with ChangeNotifier {
     }
 
     try {
-      final notificationMaps = await DatabaseHelper.instance.getNotifications(_currentUserId!);
-      print('📱 Loading ${notificationMaps.length} notifications for user $_currentUserId');
-      
+      final notificationMaps =
+          await DatabaseHelper.instance.getNotifications(_currentUserId!);
+      print(
+          '📱 Loading ${notificationMaps.length} notifications for user $_currentUserId');
+
       _notifications = notificationMaps.map((map) {
         final route = map['route'] as String?;
         final typeString = route?.split('_').last ?? 'system';
-        
+
         NotificationType notifType = NotificationType.system;
         try {
           notifType = NotificationType.values.firstWhere(
-            (e) => e.toString().toLowerCase() == 'notificationtype.$typeString'.toLowerCase(),
+            (e) =>
+                e.toString().toLowerCase() ==
+                'notificationtype.$typeString'.toLowerCase(),
           );
         } catch (e) {
-          print('Could not parse notification type: $typeString, defaulting to system');
+          print(
+              'Could not parse notification type: $typeString, defaulting to system');
         }
-        
+
         final notification = AppNotification(
           id: map['id'] as String,
           title: map['title'] as String,
@@ -61,10 +65,13 @@ class NotificationProvider with ChangeNotifier {
           timestamp: DateTime.parse(map['timestamp'] as String),
           isRead: (map['isRead'] as int) == 1,
           type: notifType,
-          movieId: map['routeArgs'] != null ? int.tryParse(map['routeArgs'] as String) : null,
+          movieId: map['routeArgs'] != null
+              ? int.tryParse(map['routeArgs'] as String)
+              : null,
         );
-        
-        print('Loaded notification: ${notification.title} - Type: ${notification.type}');
+
+        print(
+            'Loaded notification: ${notification.title} - Type: ${notification.type}');
         return notification;
       }).toList();
 
@@ -86,11 +93,11 @@ class NotificationProvider with ChangeNotifier {
 
   Future<void> _saveNotification(AppNotification notification) async {
     if (_currentUserId == null) {
-      print('⚠️ Cannot save notification: _currentUserId is null');
+      print(' Cannot save notification: _currentUserId is null');
       return;
     }
 
-    print('💾 Saving notification to database:');
+    print(' Saving notification to database:');
     print('   UserId: $_currentUserId');
     print('   Title: ${notification.title}');
     print('   ID: ${notification.id}');
@@ -106,8 +113,8 @@ class NotificationProvider with ChangeNotifier {
       'route': 'notification_${notification.type.toString().split('.').last}',
       'routeArgs': notification.movieId?.toString(),
     });
-    
-    print('✅ Notification saved successfully');
+
+    print(' Notification saved successfully');
   }
 
   Future<void> addNotification(AppNotification notification) async {
@@ -123,12 +130,13 @@ class NotificationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addNotificationForUser(String userId, AppNotification notification) async {
+  Future<void> addNotificationForUser(
+      String userId, AppNotification notification) async {
     print('Saving notification for user: $userId');
     print('Title: ${notification.title}');
     print('Body: ${notification.body}');
     print('MovieId: ${notification.movieId}');
-    
+
     await DatabaseHelper.instance.saveNotification({
       'id': notification.id,
       'userId': userId,
@@ -140,7 +148,7 @@ class NotificationProvider with ChangeNotifier {
       'route': 'notification_${notification.type.toString().split('.').last}',
       'routeArgs': notification.movieId?.toString(),
     });
-    
+
     print('Notification saved to database for user: $userId');
 
     if (userId == _currentUserId) {

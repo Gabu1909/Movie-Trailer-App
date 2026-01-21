@@ -12,6 +12,7 @@ import '../../core/api/api_constants.dart';
 import '../../core/models/movie.dart';
 import '../../providers/movie_provider.dart';
 import '../../providers/watchlist_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../core/services/feedback_service.dart';
 
 class ComingSoonScreen extends StatefulWidget {
@@ -163,6 +164,8 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
 
   Widget _buildMovieList(List<Movie> movies) {
     final provider = context.watch<MovieProvider>();
+    final favoritesProvider =
+        Provider.of<FavoritesProvider>(context, listen: true);
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
@@ -174,14 +177,45 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                         child: CircularProgressIndicator(
                             color: Colors.pinkAccent)),
                   )
-                : const SizedBox(height: 40); 
+                : const SizedBox(height: 40);
           }
           final movie = movies[index];
+          final isFavorite = favoritesProvider.isFavorite(movie.id);
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _EnhancedMovieCard(
-              movie: movie,
-              scrollController: _scrollController,
+            child: Stack(
+              children: [
+                _EnhancedMovieCard(
+                  movie: movie,
+                  scrollController: _scrollController,
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: isFavorite ? Colors.pinkAccent : Colors.white,
+                    ),
+                    tooltip: isFavorite
+                        ? 'Remove from Favorites'
+                        : 'Add to Favorites',
+                    onPressed: () async {
+                      await favoritesProvider.toggleFavorite(movie);
+                      if (!isFavorite) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Added to Favorites successfully!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -228,15 +262,15 @@ class _EnhancedMovieCardState extends State<_EnhancedMovieCard> {
     final difference = releaseDate.difference(now).inDays;
 
     if (difference < 0) {
-      return Colors.grey.shade600; 
+      return Colors.grey.shade600;
     } else if (difference <= 7) {
-      return Colors.redAccent.shade200; 
+      return Colors.redAccent.shade200;
     } else if (difference <= 30) {
-      return Colors.orangeAccent.shade400; 
+      return Colors.orangeAccent.shade400;
     } else if (difference <= 90) {
-      return Colors.blueAccent.shade200; 
+      return Colors.blueAccent.shade200;
     }
-    return Colors.purpleAccent.shade100; 
+    return Colors.purpleAccent.shade100;
   }
 
   @override
@@ -263,7 +297,7 @@ class _EnhancedMovieCardState extends State<_EnhancedMovieCard> {
       onLongPressEnd: (_) => setState(() => _isPressed = false),
       onLongPressCancel: () => setState(() => _isPressed = false),
       child: Stack(
-        clipBehavior: Clip.none, 
+        clipBehavior: Clip.none,
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -329,7 +363,7 @@ class _EnhancedMovieCardState extends State<_EnhancedMovieCard> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4), 
+                              const SizedBox(height: 4),
                               Row(
                                 children: [
                                   if (movie.releaseDate != null)
@@ -347,14 +381,14 @@ class _EnhancedMovieCardState extends State<_EnhancedMovieCard> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8), 
+                              const SizedBox(height: 8),
                               Text(
                                 movie.overview,
                                 style: TextStyle(
                                     color: Colors.white.withOpacity(0.7),
                                     fontSize: 12,
                                     height: 1.4),
-                                maxLines: 4, 
+                                maxLines: 4,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const Spacer(),
@@ -647,16 +681,14 @@ class _ParallaxFlowDelegate extends FlowDelegate {
 
   @override
   BoxConstraints getConstraintsForChild(int i, BoxConstraints constraints) {
-
     return BoxConstraints.tightFor(
       width: constraints.maxWidth,
-      height: constraints.maxHeight * 1.4, 
+      height: constraints.maxHeight * 1.4,
     );
   }
 
   @override
   void paintChildren(FlowPaintingContext context) {
-
     final scrollableBox = scrollable.context.findRenderObject() as RenderBox;
     final listItemBox = listItemContext.findRenderObject() as RenderBox;
 
